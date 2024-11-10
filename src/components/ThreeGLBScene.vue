@@ -39,7 +39,6 @@ export default {
     initThree() {
       const {proxy} = this.instance;
       proxy.$scene = new THREE.Scene();
-
       proxy.$elements = [];
 
       // Camera
@@ -81,7 +80,6 @@ export default {
 
             const camera = this.instance.proxy.$elements.find((el) => el.name === 'front_view_camera');
             this.instance.proxy.$scene.add(camera);
-            console.log(this.instance.proxy.$scene)
             this.setupScene(gltf);
 
           },
@@ -98,6 +96,8 @@ export default {
       this.setupCamera();
       this.setupAnimationMixer(gltf);
       this.setupLight();
+      this.setupDisc()
+      this.setupBackDrop();
     },
     setupAnimationMixer: function (gltf) {
       if (gltf.animations.length > 0) {
@@ -111,25 +111,42 @@ export default {
       this.camera = sceneCamera
     },
     setupLight: function () {
-      let sceneLight = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'light')
+      const sceneLight = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'light')
       sceneLight.intensity = 130
       sceneLight.castShadow = true
+      sceneLight.shadow.mapSize.width = 16384; // default
+      sceneLight.shadow.mapSize.height = 16384; // default
+      sceneLight.shadow.blur = 10;
+      sceneLight.shadow.intensity = .65
+      sceneLight.shadow.blur = 2
+      console.log(new THREE.WebGLRenderer().capabilities)
     },
     setupDisc: function () {
+      const disc = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'spinning_disc')
+
+      // disc.receiveShadow = true;
+      disc.castShadow = true;
     },
     setupBackDrop: function () {
+      const backDrop = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'back_drop')
+      backDrop.receiveShadow = true;
+      backDrop.castShadow = true;
+
+
     },
     animate() {
-      this.updateCameraAspect();
       requestAnimationFrame(this.animate);
 
       if (this.camera) {
+        this.updateCameraAspect();
+
         this.renderer.render(this.instance.proxy.$scene, this.camera);
       }
 
       if (this.mixer) {
         this.mixer.update(this.clock.getDelta());
       }
+
       this.handleMouseMove()
 
     },
@@ -141,13 +158,22 @@ export default {
       let scene = this.instance.proxy.$scene.children[0]
 
       if (scene) {
-        rotationTarget.x += targetY - scene.rotation.x
+        rotationTarget.x += .3 * targetY - scene.rotation.x
         rotationTarget.y += targetX - scene.rotation.y
         scene.rotation.set(rotationTarget.x, rotationTarget.y, scene.rotation.z)
       }
     },
     onWindowResize() {
-      this.updateCameraAspect();
+      // this.updateCameraAspect();
+    },
+    updateCameraAspect() {
+      const width = window.innerWidth;
+      const height = window.innerHeight;
+
+      this.camera.aspect = width / height;
+      this.camera.updateProjectionMatrix();
+
+      this.renderer.setSize(width, height);
     },
     onMouseMove(event) {
       const {mouse, windowHalfX, windowHalfY} = this
@@ -161,18 +187,6 @@ export default {
     removeEventListeners: function () {
       window.removeEventListener('resize', this.onWindowResize);
       window.removeEventListener('mousemove', this.onMouseMove);
-    },
-    updateCameraAspect() {
-      if (!this.camera) return
-
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-
-      this.camera.aspect = width / height;
-      this.camera.updateProjectionMatrix();
-
-      this.renderer.setSize(width, height);
-
     }
   },
 
