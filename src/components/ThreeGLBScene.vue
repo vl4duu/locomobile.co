@@ -6,9 +6,11 @@
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 import {getCurrentInstance} from 'vue'
+import NavBar from "@/components/NavBar.vue";
 
 export default {
   name: 'ThreeGLBScene',
+  components: {NavBar},
   data() {
     return {
       camera: null,
@@ -119,9 +121,8 @@ export default {
       const sceneLight = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'light')
       sceneLight.intensity = 130
       sceneLight.castShadow = true
-      sceneLight.shadow.mapSize.width = 16384; // default
-      sceneLight.shadow.mapSize.height = 16384; // default
-      sceneLight.shadow.blur = 10;
+      sceneLight.shadow.mapSize.width = 16384;
+      sceneLight.shadow.mapSize.height = 16384;
       sceneLight.shadow.intensity = .65
       sceneLight.shadow.blur = 2
       console.log(new THREE.WebGLRenderer().capabilities)
@@ -205,12 +206,14 @@ export default {
   margin: 0;
   padding: 0;
 }
+
 .webgl {
   position: fixed;
   top: 0;
   left: 0;
   outline: none;
 }
+
 html,
 body {
   overflow: hidden;
