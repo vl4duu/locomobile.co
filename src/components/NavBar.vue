@@ -1,26 +1,11 @@
-<template>
-  <n-split :default-size="500" class="navbar" style="display: flex; align-items: center; height: 80px;">
-    <template #1>
-      <n-menu
-          v-model:value="activeKey"
-          mode="horizontal"
-          :options="menuOptions"
-          responsive
-      />
-    </template>
-  </n-split>
-</template>
-<style>
+<style scoped>
 .navbar {
   position: fixed;
   top: 0;
   left: 0;
-  width: 100%;
-  z-index: 1000;
+  z-index: 9999;
 }
-body {
-  font-size: 50px;
-}
+
 </style>
 <script>
 import {defineComponent, h, ref} from "vue";
@@ -28,9 +13,11 @@ import {NIcon, NMenu, NSplit} from "naive-ui";
 import {
   BookOutline as BookIcon,
   PersonOutline as PersonIcon,
-  WineOutline as WineIcon
+  WineOutline as WineIcon,
+  LogoYoutube,
+  LinkOutline
 } from "@vicons/ionicons5";
-
+import customIcon from '../assets/radio-tower-red.png'
 
 function renderIcon(icon) {
   return () => h(NIcon, null, {default: () => h(icon)});
@@ -38,51 +25,33 @@ function renderIcon(icon) {
 
 const menuOptions = [
   {
+    icon: () => h("img", {
+      src: customIcon,
+      alt: "Custom Icon",
+      style: {width: '5vh', height: '5vh'},
+    }),
     label: () => h(
-        "a",
-        {
-          href: "https://en.wikipedia.org/wiki/Hear_the_Wind_Sing",
-          target: "_blank",
-          rel: "noopenner noreferrer"
-        },
-        "Hear the Wind Sing"
+        "h3",
+        {style: {fontWeight: "bold", paddingLeft: '30px', pointerEvents: 'none'}},
+        "Locomobile"
     ),
-    key: "hear-the-wind-sing",
-    icon: h("img", { src: "../assets/radio-tower.png", alt: "Custom Icon", style: "width: 24px; height: 24px;" })
+    type: undefined,
   },
   {
-    label: "Pinball 1973",
-    key: "pinball-1973",
-    icon: renderIcon(BookIcon),
-    disabled: false,
+    label: "",
+    key: "links-header",
+    icon: renderIcon(LinkOutline),
+    style: "width: 50px; height: 50px;",
     children: [
       {
         type: "group",
-        label: "Rat",
-        key: "rat"
-      }
-    ]
-  },
-  {
-    label: "A Wild Sheep Chase",
-    key: "a-wild-sheep-chase",
-    disabled: true,
-    icon: renderIcon(BookIcon)
-  },
-  {
-    label: "Dance Dance Dance",
-    key: "Dance Dance Dance",
-    icon: renderIcon(BookIcon),
-    children: [
-      {
-        type: "group",
-        label: "People",
-        key: "people",
+        label: "Links",
+        key: "Links",
         children: [
           {
-            label: "Narrator",
+            label: "Youtube",
             key: "narrator",
-            icon: renderIcon(PersonIcon)
+            icon: renderIcon(LogoYoutube),
           },
           {
             label: "Sheep Man",
@@ -113,7 +82,7 @@ const menuOptions = [
         ]
       },
       {
-        label: "The past increases. The future recedes.",
+        label: "contact@locomobile.co",
         key: "the-past-increases-the-future-recedes"
       }
     ]
@@ -124,9 +93,68 @@ export default defineComponent({
   components: {NMenu, NSplit},
   setup() {
     return {
-      activeKey: ref(null),
       menuOptions
     };
+  },
+  data() {
+    return {
+      logoSrc: customIcon
+    }
   }
 });
+
 </script>
+
+<template>
+
+  <n-grid cols="2 400:4 600:6">
+    <n-grid-item>
+      <div class="light-green">
+        1
+      </div>
+    </n-grid-item>
+    <n-grid-item>
+      <div class="green">
+        2
+      </div>
+    </n-grid-item>
+    <n-grid-item>
+      <div class="light-green">
+        3
+      </div>
+    </n-grid-item>
+    <n-grid-item>
+      <div class="green">
+        4
+      </div>
+    </n-grid-item>
+    <n-grid-item>
+      <div class="light-green">
+        5
+      </div>
+    </n-grid-item>
+    <n-grid-item>
+      <div class="green">
+        6
+      </div>
+    </n-grid-item>
+  </n-grid>
+  <n-split
+      :default-size="100" class="navbar"
+      style="display:
+      flex; align-items:
+      center;
+      height: 150px;"
+  >
+    <template #1>
+      <n-menu
+          v-model:value="activeKey"
+          mode="horizontal"
+          :options="menuOptions"
+          responsive
+          icon-size="34"
+          style="font-size: 1.5vh; "
+      />
+    </template>
+  </n-split>
+</template>
