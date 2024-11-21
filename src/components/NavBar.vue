@@ -106,39 +106,6 @@ export default defineComponent({
 </script>
 
 <template>
-
-  <n-grid cols="2 400:4 600:6">
-    <n-grid-item>
-      <div class="light-green">
-        1
-      </div>
-    </n-grid-item>
-    <n-grid-item>
-      <div class="green">
-        2
-      </div>
-    </n-grid-item>
-    <n-grid-item>
-      <div class="light-green">
-        3
-      </div>
-    </n-grid-item>
-    <n-grid-item>
-      <div class="green">
-        4
-      </div>
-    </n-grid-item>
-    <n-grid-item>
-      <div class="light-green">
-        5
-      </div>
-    </n-grid-item>
-    <n-grid-item>
-      <div class="green">
-        6
-      </div>
-    </n-grid-item>
-  </n-grid>
   <n-split
       :default-size="100" class="navbar"
       style="display:
