@@ -11,11 +11,11 @@ import {AlternateEmailFilled} from "@vicons/material";
 import {Link} from "@vicons/tabler";
 import radioTowerIcon from '../assets/radio-tower-red.png'
 
-const defaultIconStyle = {height: '1.5vw', width: '1.5vw', paddingBottom: 10, paddingRight: 10}
+const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, paddingRight: 10}
 
 
-function renderIcon(icon, classname) {
-  return () => h(NIcon, null, {default: () => h(icon, {class: classname})});
+function renderIcon(icon, classname, styling = defaultIconStyle) {
+  return () => h(NIcon, null, {default: () => h(icon, {class: classname, style: styling})});
 }
 
 const menuOptions = [
@@ -38,7 +38,7 @@ const menuOptions = [
       {
         label: "",
         key: "links-header",
-        icon: () => h(renderIcon(Link, {width: 25, height: 25}),
+        icon: () => h(renderIcon(Link, 'links-header', {width: '130%', height: '130%'}),
             {style: {}}),
         class: "links-header",
         children: [
@@ -53,23 +53,23 @@ const menuOptions = [
               {
                 label: "Youtube",
                 key: "youtube",
-                icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube'),
+                icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube', {width: '100%', height: '100%'}),
               },
               {
                 label: "Mixcloud",
                 key: "mixcloud",
-                icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud'),
+                icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud', {width: '100%', height: '100%'}),
               }
             ]
           },
           {
             label: "Twitch",
             key: "twitch",
-            icon: renderIcon(LogoTwitch, ),
+            icon: renderIcon(LogoTwitch, 'twitch', {width: '100%', height: '100%'}),
           },
           {
             label: "contact@locomobile.co",
-            icon: renderIcon(AlternateEmailFilled),
+            icon: renderIcon(AlternateEmailFilled, 'email', {width: '100%', height: '100%'}),
             key: "email"
           }
         ]
@@ -108,8 +108,6 @@ export default defineComponent({
   </n-split>
 </template>
 
-<!--<style src="../assets/Navbar/scopedStylesheet.css" scoped></style>-->
-<!--<style src="../assets/Navbar/scopedStylesheet.css"></style>-->
 
 <style src="../assets/Navbar/stylesheet.css"></style>
 <style scoped src="../assets/Navbar/scopedStylesheet.css"></style>

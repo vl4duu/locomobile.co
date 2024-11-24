@@ -71,7 +71,7 @@ export default {
     loadScene: function () {
       const loader = new GLTFLoader()
       loader.load(
-          '/spinning-disc.gltf', // Adjust the path as needed
+          '/spinning-disc.gltf',
           (gltf) => {
             gltf.scene.traverse((obj) => {
               this.instance.proxy.$elements.push(obj)
@@ -91,7 +91,7 @@ export default {
 
           },
           (xhr) => {
-            // console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+
           },
           (error) => {
             console.error('An error happened', error);
