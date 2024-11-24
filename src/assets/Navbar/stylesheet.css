@@ -1,0 +1,82 @@
+@media screen and (max-width: 600px) {
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+    }
+
+    .n-split n-split--horizontal navbar {
+        height: 200px;
+    }
+
+    .locomobile-title {
+        color: white;
+        font-size: 36px;
+        font-stretch: extra-expanded;
+    }
+
+    .v-overflow {
+        overflow: visible;
+        height: 70px;
+        vertical-align: top;
+    }
+
+    .n-dropdown-option-body__label {
+        font-size: 3vw;
+    }
+
+    .radio-tower {
+        height: 70px;
+        padding-left: 10px;
+    }
+
+    .youtube {
+        width: 10vw;
+        height: 10vw;
+    }
+
+    .mixcloud {
+        width: 20vw;
+        height: 10vw;
+    }
+
+    .n-icon svg {
+        height: 20px;
+
+    }
+
+    .n-dropdown-option-body {
+        /*TODO*/
+    }
+
+
+}
+
+
+@media screen and (min-width: 600px) {
+    .radio-tower {
+        height: 70px;
+        padding-left: 10px;
+    }
+
+    .locomobile-title {
+        color: white;
+        font-size: 36px;
+    }
+
+    .v-overflow {
+        overflow: visible;
+        height: 70px;
+        vertical-align: top;
+    }
+
+    .n-dropdown-option-body__label {
+        font-size: 1vw;
+        font-stretch: expanded;
+    }
+
+    .n-dropdown-option-body {
+        /*TODO*/
+    }
+}

@@ -1,0 +1,39 @@
+@media screen and (max-width: 600px) {
+
+
+
+    .n-split-pane-1 {
+        height: 100px;
+    }
+
+    .n-menu-item-content {
+        padding-top: 100px;
+    }
+
+    .n-menu-item-content n-menu-item-content--child-active {
+        padding-top: 1000px;
+    }
+
+}
+
+@media screen and (min-width: 600px) {
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+    }
+
+    .n-split n-split--horizontal navbar {
+        height: 200px;
+    }
+
+    .n-split-pane-1 {
+        height: 100px;
+    }
+
+    .n-menu-item-content {
+        padding-top: 500000px;
+    }
+
+}

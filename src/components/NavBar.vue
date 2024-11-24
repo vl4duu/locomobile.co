@@ -1,93 +1,81 @@
-<style scoped>
-.navbar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 9999;
-}
-
-</style>
 <script>
 import {defineComponent, h, ref} from "vue";
-import {NIcon, NMenu, NSplit} from "naive-ui";
+import {NIcon, NMenu, NSplit, darkTheme} from "naive-ui";
 import {
-  BookOutline as BookIcon,
-  PersonOutline as PersonIcon,
-  WineOutline as WineIcon,
   LogoYoutube,
-  LinkOutline
+  LinkOutline,
+  LogoTwitch,
 } from "@vicons/ionicons5";
-import customIcon from '../assets/radio-tower-red.png'
+import {Mixcloud} from "@vicons/fa";
+import {AlternateEmailFilled} from "@vicons/material";
+import {Link} from "@vicons/tabler";
+import radioTowerIcon from '../assets/radio-tower-red.png'
 
-function renderIcon(icon) {
-  return () => h(NIcon, null, {default: () => h(icon)});
+const defaultIconStyle = {height: '1.5vw', width: '1.5vw', paddingBottom: 10, paddingRight: 10}
+
+
+function renderIcon(icon, classname) {
+  return () => h(NIcon, null, {default: () => h(icon, {class: classname})});
 }
 
 const menuOptions = [
-  {
-    icon: () => h("img", {
-      src: customIcon,
-      alt: "Custom Icon",
-      style: {width: '5vh', height: '5vh'},
-    }),
-    label: () => h(
-        "h3",
-        {style: {fontWeight: "bold", paddingLeft: '30px', pointerEvents: 'none'}},
-        "Locomobile"
-    ),
-    type: undefined,
-  },
-  {
-    label: "",
-    key: "links-header",
-    icon: renderIcon(LinkOutline),
-    style: "width: 50px; height: 50px;",
-    children: [
       {
-        type: "group",
-        label: "Links",
-        key: "Links",
+        icon: () => h("img", {
+          src: radioTowerIcon,
+          alt: "Custom Icon",
+          class: 'radio-tower',
+        }),
+        label: () => h(
+            "h2",
+            {
+              style: {fontWeight: "bold", paddingLeft: '30px'},
+              class: 'locomobile-title'
+            },
+            "Locomobile"
+        ),
+        type: 'text'
+      },
+      {
+        label: "",
+        key: "links-header",
+        icon: () => h(renderIcon(Link, {width: 25, height: 25}),
+            {style: {}}),
+        class: "links-header",
         children: [
           {
-            label: "Youtube",
-            key: "narrator",
-            icon: renderIcon(LogoYoutube),
+            type: "group",
+            label: () => h(
+                'h3',
+                'Catch me !'
+            ),
+            key: "Links",
+            children: [
+              {
+                label: "Youtube",
+                key: "youtube",
+                icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube'),
+              },
+              {
+                label: "Mixcloud",
+                key: "mixcloud",
+                icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud'),
+              }
+            ]
           },
           {
-            label: "Sheep Man",
-            key: "sheep-man",
-            icon: renderIcon(PersonIcon)
-          }
-        ]
-      },
-      {
-        label: "Beverage",
-        key: "beverage",
-        icon: renderIcon(WineIcon),
-        children: [
+            label: "Twitch",
+            key: "twitch",
+            icon: renderIcon(LogoTwitch, ),
+          },
           {
-            label: "Whisky",
-            key: "whisky"
+            label: "contact@locomobile.co",
+            icon: renderIcon(AlternateEmailFilled),
+            key: "email"
           }
         ]
-      },
-      {
-        label: "Food",
-        key: "food",
-        children: [
-          {
-            label: "Sandwich",
-            key: "sandwich"
-          }
-        ]
-      },
-      {
-        label: "contact@locomobile.co",
-        key: "the-past-increases-the-future-recedes"
       }
     ]
-  }
-];
+;
 
 export default defineComponent({
   components: {NMenu, NSplit},
@@ -95,11 +83,6 @@ export default defineComponent({
     return {
       menuOptions
     };
-  },
-  data() {
-    return {
-      logoSrc: customIcon
-    }
   }
 });
 
@@ -119,9 +102,14 @@ export default defineComponent({
           mode="horizontal"
           :options="menuOptions"
           responsive
-          icon-size="34"
-          style="font-size: 1.5vh; "
+          key="menu"
       />
     </template>
   </n-split>
 </template>
+
+<!--<style src="../assets/Navbar/scopedStylesheet.css" scoped></style>-->
+<!--<style src="../assets/Navbar/scopedStylesheet.css"></style>-->
+
+<style src="../assets/Navbar/stylesheet.css"></style>
+<style scoped src="../assets/Navbar/scopedStylesheet.css"></style>
