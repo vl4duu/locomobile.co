@@ -4,15 +4,15 @@
 }
 
 @media screen and (max-width: 600px) {
+    .n-menu div {
+        height: 70px;
+    }
+
     .navbar {
         position: fixed;
         top: 0;
         left: 0;
         z-index: 9999;
-    }
-
-    .n-split n-split--horizontal navbar {
-        height: 200px;
     }
 
     .locomobile-title {
@@ -22,17 +22,20 @@
         user-select: none;
 
 
-        font-family: imported-font;
         font-weight: lighter;
         font-style: normal;
         font-stretch: extra-expanded;
     }
 
+    .locomobile-title {
+        font-family: imported-font;
+    }
+
     .links-header {
-        margin-bottom: -37px;
+        margin-bottom: -24px;
         margin-left: -45px;
         overflow: visible;
-        color: white;
+        color: #4fbb69;
         height: 40px;
         width: 40px;
     }
@@ -60,6 +63,7 @@
         height: 70px;
         padding-left: 15px;
         margin-bottom: 10px;
+        user-select: none;
     }
 
     .locomobile-title {
@@ -68,29 +72,29 @@
         font-size: 35px;
         user-select: none;
 
-
         font-family: imported-font, cursive;
         font-weight: 10;
         font-style: normal;
     }
 
     .links-header {
-        margin-bottom: -36px;
-        margin-left: -40px;
-        overflow: visible;
-        color: white;
         height: 40px;
         width: 40px;
+
+        margin-bottom: -39px;
+        margin-left: -40px;
+
+        overflow: visible;
+        color: #4fbb69;
     }
 
     .v-overflow {
-        overflow: visible;
         height: 70px;
-        vertical-align: top;
+        overflow: visible;
     }
 
     .n-dropdown-option-body__label {
-        font-size: 0.95vw;
+        font-size: 12px;
         font-stretch: expanded;
     }
 

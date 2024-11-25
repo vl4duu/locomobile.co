@@ -1,5 +1,5 @@
 <script>
-import {defineComponent, h, ref} from "vue";
+import {defineComponent, h} from "vue";
 import {NIcon, NMenu, NSplit, darkTheme} from "naive-ui";
 import {
   LogoYoutube,
