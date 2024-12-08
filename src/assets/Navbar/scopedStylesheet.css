@@ -1,6 +1,7 @@
 @media screen and (max-width: 600px) {
-
-
+    .n-menu div {
+        height: 70px;
+    }
 
     .n-split-pane-1 {
         height: 100px;
@@ -14,16 +15,17 @@
         padding-top: 1000px;
     }
 
+    .n-split--horizontal {
+        color: pink;
+    }
+
+    .n-dropdown-option-body__label {
+        font-size: 2.7vw;
+    }
+
 }
 
 @media screen and (min-width: 600px) {
-    .navbar {
-        position: fixed;
-        top: 0;
-        left: 0;
-        z-index: 9999;
-    }
-
     .n-split n-split--horizontal navbar {
         height: 200px;
     }
@@ -34,6 +36,17 @@
 
     .n-menu-item-content {
         padding-top: 500000px;
+    }
+
+
+    .v-overflow {
+        height: 70px;
+        overflow: visible;
+    }
+
+    .n-dropdown-option-body__label {
+        font-size: 12px;
+        font-stretch: expanded;
     }
 
 }

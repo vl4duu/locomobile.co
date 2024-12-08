@@ -4,19 +4,11 @@
 }
 
 @media screen and (max-width: 600px) {
-    .n-menu div {
-        height: 70px;
-    }
-
     .navbar {
         position: fixed;
         top: 0;
         left: 0;
         z-index: 9999;
-        color: pink;
-    }
-
-    .n-split--horizontal {
         color: pink;
     }
 
@@ -47,10 +39,6 @@
         vertical-align: top;
     }
 
-    .n-dropdown-option-body__label {
-        font-size: 3vw;
-    }
-
     .radio-tower {
         height: 70px;
         padding-left: 10px;
@@ -60,6 +48,13 @@
 
 
 @media screen and (min-width: 600px) {
+    .navbar {
+        position: fixed;
+        top: 0;
+        left: 0;
+        z-index: 9999;
+    }
+
     .radio-tower {
         height: 70px;
         padding-left: 15px;
@@ -85,14 +80,5 @@
         color: #4fbb69;
     }
 
-    .v-overflow {
-        height: 70px;
-        overflow: visible;
-    }
-
-    .n-dropdown-option-body__label {
-        font-size: 12px;
-        font-stretch: expanded;
-    }
 
 }
