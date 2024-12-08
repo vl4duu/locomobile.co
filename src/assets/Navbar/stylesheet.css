@@ -3,6 +3,10 @@
     src: url('@/assets/fonts/Yellowtail-Regular.ttf');
 }
 
+.n-submenu {
+    width: 0;
+}
+
 @media screen and (max-width: 600px) {
     .navbar {
         position: fixed;
