@@ -10,6 +10,7 @@ import {Mixcloud} from "@vicons/fa";
 import {AlternateEmailFilled} from "@vicons/material";
 import {Link} from "@vicons/tabler";
 import radioTowerIcon from '../assets/radio-tower-red.png'
+import whiteLogo from "../assets/locomobile-title.png";
 
 const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, paddingRight: 10}
 
@@ -26,9 +27,10 @@ const menuOptions = [
           class: 'radio-tower',
         }),
         label: () => h(
-            "h2",
+            "img",
             {
-              style: {fontWeight: "bold", paddingLeft: '30px'},
+              src: whiteLogo,
+              alt: "Custom Icon",
               class: 'locomobile-title'
             },
             "Locomobile"
