@@ -1,16 +1,15 @@
 <script>
 import {defineComponent, h} from "vue";
-import {NIcon, NMenu, NSplit, darkTheme} from "naive-ui";
+import {NIcon, NMenu, NSplit} from "naive-ui";
 import {
   LogoYoutube,
-  LinkOutline,
   LogoTwitch,
 } from "@vicons/ionicons5";
 import {Mixcloud} from "@vicons/fa";
 import {AlternateEmailFilled} from "@vicons/material";
 import {Link} from "@vicons/tabler";
-import radioTowerIcon from '../assets/radio-tower-red.png'
-import whiteLogo from "../assets/locomobile-title.png";
+import radioTowerIcon from '../assets/images/radio-tower-red.png'
+import whiteLogo from "../assets/images/locomobile-title.png";
 
 const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, paddingRight: 10}
 
