@@ -13,18 +13,24 @@ export default {
   components: {NavBar},
   data() {
     return {
-      camera: null,
       mouse: new THREE.Vector2(),
       rotationTarget: new THREE.Vector2(),
       displaySize: {width: null, height: null},
-      defaultFov: 40,
       windowHalfX: window.innerWidth / 2,
       windowHalfY: window.innerHeight / 2,
+
+      /**Used to store scene data */
       instance: getCurrentInstance(),
       elements: [],
+
       clock: new THREE.Clock(),
       mixer: null,
+
+      camera: null,
       renderer: null,
+      defaultFov: 40,
+
+      loadPercent: null
     }
   },
   async mounted() {
@@ -63,7 +69,6 @@ export default {
       this.renderer.useLegacyLights = false;
       this.renderer.toneMapping = THREE.NoToneMapping;
       this.renderer.setClearColor(949390, 0);
-      // make sure three/build/three.module.js is over r152 or this feature is not available.
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
     },
@@ -83,7 +88,6 @@ export default {
               }
             }
             this.instance.proxy.$scene.add(this.instance.proxy.$elements[0])
-            console.log(this.instance.proxy.$scene)
 
             const camera = this.instance.proxy.$elements.find((el) => el.name === 'front_view_camera');
             this.instance.proxy.$scene.add(camera);
@@ -91,10 +95,10 @@ export default {
 
           },
           (xhr) => {
-
           },
+
           (error) => {
-            console.error('An error happened', error);
+
           }
       );
 
@@ -124,7 +128,6 @@ export default {
       sceneLight.shadow.mapSize.width = 16384;
       sceneLight.shadow.mapSize.height = 16384;
       sceneLight.shadow.intensity = .65
-      sceneLight.shadow.blur = 2
       console.log(new THREE.WebGLRenderer().capabilities)
     },
     setupDisc: function () {
@@ -156,8 +159,8 @@ export default {
     },
     handleMouseMove: function () {
       const {mouse, rotationTarget} = this
-      let targetX = mouse.x * .0001
-      let targetY = mouse.y * .0001
+      let targetX = mouse.x * -.0001
+      let targetY = mouse.y * -.0001
 
       let scene = this.instance.proxy.$scene.children[0]
 
