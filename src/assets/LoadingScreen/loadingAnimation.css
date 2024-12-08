@@ -1,9 +1,8 @@
 :root {
-    --color-background: #1dce5d;
     --color: #1dce7c;
     --colorRight: #12794b;
     --colorLeft: #1dce7c;
-    --shadow: #222428;
+    --shadow: #702020;
 }
 
 .boxes {
@@ -138,12 +137,10 @@ html {
 
 body {
     min-height: 100vh;
-    font-family: Roboto, Arial;
-    color: #ADAFB6;
     display: flex;
     justify-content: center;
     align-items: center;
-    background: #F9FBFF;
+    background: #0e0c0c;
     .dribbble {
         position: fixed;
         display: block;

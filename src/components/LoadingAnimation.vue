@@ -1,6 +1,4 @@
 <!--https://codepen.io/aaroniker/pen/ZmOMJp-->
-<script setup>
-</script>
 
 <template>
   <div class="boxes">
