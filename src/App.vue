@@ -2,28 +2,21 @@
 import ThreeGLBScene from "@/components/ThreeGLBScene.vue";
 import NavBar from "@/components/NavBar.vue";
 import {ref} from 'vue'
+import LoadingAnimation from "@/components/LoadingAnimation.vue";
+
 const loaded = ref(false);
+
+const handleLoadEnd = function () {
+  loaded.value = true;
+}
 </script>
 
 
 <template>
   <main>
     <NavBar/>
-    <ThreeGLBScene @loaded="handleLoadEnd"/>
-    <LoadingAnimation ref="loadingAnimationRef" :class="{loaded}" />
+    <ThreeGLBScene @loaded="handleLoadEnd" v-show="loaded"/>
+    <LoadingAnimation ref="loadingAnimationRef" v-if="!loaded"/>
   </main>
 </template>
 
-
-<script>
-import LoadingAnimation from "./components/LoadingAnimation.vue";
-
-export default {
-  components: {LoadingAnimation},
-  methods: {
-    handleLoadEnd() {
-      console.log(this.$refs.loadingAnimationRef.value);
-    }
-  }
-}
-</script>

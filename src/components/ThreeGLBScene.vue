@@ -1,5 +1,7 @@
 <template>
-  <canvas ref="sceneContainer" class="webgl"></canvas>
+  <canvas ref="sceneContainer" class="webgl" v-show="!loading"
+
+  ></canvas>
 </template>
 
 <script>
@@ -14,6 +16,7 @@ export default {
   components: {LoadingAnimation, NavBar},
   data() {
     return {
+      loading: true,
       mouse: new THREE.Vector2(),
       rotationTarget: new THREE.Vector2(),
       displaySize: {width: null, height: null},
@@ -70,10 +73,11 @@ export default {
       this.renderer.toneMapping = THREE.NoToneMapping;
       this.renderer.setClearColor(949390, 0);
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
-
+      this.renderer.setClearColor(0x000000, 0); // Transparent background
     },
     loadScene: function () {
       const loadingManager = new THREE.LoadingManager(() => {
+        this.loading = false
         this.$emit('loaded');
       });
 
@@ -101,8 +105,8 @@ export default {
 
     },
     setupScene: function (gltf) {
-      this.setupCamera();
       this.setupAnimationMixer(gltf);
+      this.setupCamera();
       this.setupLight();
       this.setupDisc()
       this.setupBackDrop();
