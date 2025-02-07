@@ -34,4 +34,6 @@
       alt=""></a>
 </template>
 
-<style src="../assets/LoadingScreen/loadingAnimation.css"></style>
+<style src="../assets/styles/LoadingScreen/loadingAnimation.css"></style>
+<script setup lang="ts">
+</script>

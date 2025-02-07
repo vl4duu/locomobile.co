@@ -8,7 +8,7 @@ import {
 import {Mixcloud} from "@vicons/fa";
 import {AlternateEmailFilled} from "@vicons/material";
 import {Link} from "@vicons/tabler";
-import radioTowerIcon from '../assets/images/radio-tower-red.png'
+import radioTowerIcon from '../assets/images/radio-tower.png'
 import whiteLogo from "../assets/images/locomobile-title.png";
 
 const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, paddingRight: 10}
@@ -110,5 +110,5 @@ export default defineComponent({
 </template>
 
 
-<style src="../assets/Navbar/stylesheet.css"></style>
-<style scoped src="../assets/Navbar/scopedStylesheet.css"></style>
+<style src="../assets/styles/Navbar/stylesheet.css"></style>
+<style scoped src="../assets/styles/Navbar/scopedStylesheet.css"></style>

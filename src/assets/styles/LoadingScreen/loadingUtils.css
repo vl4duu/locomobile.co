@@ -6,7 +6,7 @@ html, body {
 }
 
 #loading-screen {
-	position: fixed;
+	position: absolute;
 	z-index: 2;
 	top: 0;
 	left: 0;
@@ -17,7 +17,7 @@ html, body {
  	transition: 1s opacity;
 }
 
-#loading-screen.fade-out {
+.fade-out {
     opacity: 0;
 }
 
@@ -31,9 +31,6 @@ html, body {
     margin: -75px 0 0 -75px;
     border-radius: 50%;
     border: 3px solid transparent;
-    border-top-color: #9370DB;
-    -webkit-animation: spin 2s linear infinite;
-    animation: spin 2s linear infinite;
 }
 #loader:before {
     content: "";
@@ -44,9 +41,6 @@ html, body {
     bottom: 5px;
     border-radius: 50%;
     border: 3px solid transparent;
-    border-top-color: #BA55D3;
-    -webkit-animation: spin 3s linear infinite;
-    animation: spin 3s linear infinite;
 }
 #loader:after {
     content: "";

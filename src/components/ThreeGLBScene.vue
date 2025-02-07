@@ -7,10 +7,11 @@ import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
 import {getCurrentInstance} from 'vue'
 import NavBar from "@/components/NavBar.vue";
+import LoadingAnimation from "@/components/LoadingAnimation.vue";
 
 export default {
   name: 'ThreeGLBScene',
-  components: {NavBar},
+  components: {LoadingAnimation, NavBar},
   data() {
     return {
       mouse: new THREE.Vector2(),
@@ -57,7 +58,6 @@ export default {
 
       this.renderer = new THREE.WebGLRenderer({canvas, antialias: true});
       this.renderer.setSize(this.$refs.sceneContainer.clientWidth, this.$refs.sceneContainer.clientHeight);
-      // this.$refs.sceneContainer.appendChild(this.renderer.domElement);
 
       //set up the renderer with the default settings for threejs.org/editor - revision r153
       this.renderer.shadows = true;
@@ -72,9 +72,12 @@ export default {
       this.renderer.outputColorSpace = THREE.SRGBColorSpace
 
     },
-
     loadScene: function () {
-      const loader = new GLTFLoader()
+      const loadingManager = new THREE.LoadingManager(() => {
+        this.$emit('loaded');
+      });
+
+      const loader = new GLTFLoader(loadingManager)
       loader.load(
           '/spinning-disc.gltf',
           (gltf) => {
@@ -92,12 +95,6 @@ export default {
             const camera = this.instance.proxy.$elements.find((el) => el.name === 'front_view_camera');
             this.instance.proxy.$scene.add(camera);
             this.setupScene(gltf);
-
-          },
-          (xhr) => {
-          },
-
-          (error) => {
 
           }
       );
@@ -132,8 +129,6 @@ export default {
     },
     setupDisc: function () {
       const disc = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'spinning_disc')
-
-      // disc.receiveShadow = true;
       disc.castShadow = true;
     },
     setupBackDrop: function () {
@@ -146,7 +141,6 @@ export default {
 
       if (this.camera) {
         this.updateCameraAspect();
-
         this.renderer.render(this.instance.proxy.$scene, this.camera);
       }
 
@@ -203,7 +197,7 @@ export default {
 
 }
 </script>
-
+<style src="../assets/styles/LoadingScreen/loadingUtils.css"></style>
 <style>
 * {
   margin: 0;
