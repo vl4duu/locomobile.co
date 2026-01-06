@@ -1,3 +1,7 @@
+# Environment variables
+.env
+.env.*
+
 # Logs
 logs
 *.log
@@ -21,6 +25,8 @@ coverage
 .vscode/*
 !.vscode/extensions.json
 .idea
+.claude
+.junie
 *.suo
 *.ntvs*
 *.njsproj
@@ -28,3 +34,5 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+CLAUDE.md

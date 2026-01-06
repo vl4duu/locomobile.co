@@ -9,7 +9,7 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "flask": "cd server && python app.py",
+    "flask": "source venv/bin/activate && cd server && python app.py",
     "start": "concurrently \"npm run dev\" \"npm run flask\""
   },
   "dependencies": {
