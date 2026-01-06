@@ -53,9 +53,11 @@ const handleLoadEnd = async function () {
     <div class="scene-container" :class="{ 'fade-in': showScene }">
       <ThreeGLBScene @loaded="handleLoadEnd"/>
     </div>
-    <div class="loading-container" :class="{ 'fade-out': loaded }">
-      <LoadingAnimation ref="loadingAnimationRef"/>
-    </div>
+    <Transition name="fade" appear>
+      <div class="loading-container" :class="{ 'fade-out': loaded }">
+        <LoadingAnimation ref="loadingAnimationRef"/>
+      </div>
+    </Transition>
     <Transition name="fade">
       <ApiTest v-if="showApiTest" :data="apiData"/>
     </Transition>

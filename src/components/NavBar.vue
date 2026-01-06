@@ -18,7 +18,7 @@ function renderIcon(icon, classname, styling = defaultIconStyle) {
   return () => h(NIcon, null, {default: () => h(icon, {class: classname, style: styling})});
 }
 
-const menuOptions = [
+const mainMenuOptions = [
       {
         icon: () => h("img", {
           src: radioTowerIcon,
@@ -35,46 +35,50 @@ const menuOptions = [
             "Locomobile"
         ),
         type: 'text'
-      },
-      {
-        label: "",
-        key: "links-header",
-        icon: () => h(renderIcon(Link, 'links-header', {width: '130%', height: '130%'}),
-            {style: {}}),
-        class: "links-header",
-        children: [
-          {
-            type: "group",
-            label: () => h(
-                'h3',
-                'Catch me !'
-            ),
-            key: "Links",
-            children: [
-              {
-                label: "Youtube",
-                key: "youtube",
-                icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube', {width: '100%', height: '100%'}),
-              },
-              {
-                label: "Mixcloud",
-                key: "mixcloud",
-                icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud', {width: '100%', height: '100%'}),
-              }
-            ]
-          },
-          {
-            label: "Twitch",
-            key: "twitch",
-            icon: renderIcon(LogoTwitch, 'twitch', {width: '100%', height: '100%'}),
-          },
-          {
-            label: "contact@locomobile.co",
-            icon: renderIcon(AlternateEmailFilled, 'email', {width: '100%', height: '100%'}),
-            key: "email"
-          }
-        ]
       }
+    ]
+;
+
+const linksMenuOptions = [
+      // {
+      //   label: "",
+      //   key: "links-header",
+      //   icon: () => h(renderIcon(Link, 'links-header', {width: '130%', height: '130%'}),
+      //       {style: {}}),
+      //   class: "links-header",
+      //   children: [
+      //     {
+      //       type: "group",
+      //       label: () => h(
+      //           'h3',
+      //           'Catch me !'
+      //       ),
+      //       key: "Links",
+      //       children: [
+      //         {
+      //           label: "Youtube",
+      //           key: "youtube",
+      //           icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube', {width: '100%', height: '100%'}),
+      //         },
+      //         {
+      //           label: "Mixcloud",
+      //           key: "mixcloud",
+      //           icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud', {width: '100%', height: '100%'}),
+      //         }
+      //       ]
+      //     },
+      //     {
+      //       label: "Twitch",
+      //       key: "twitch",
+      //       icon: renderIcon(LogoTwitch, 'twitch', {width: '100%', height: '100%'}),
+      //     },
+      //     {
+      //       label: "contact@locomobile.co",
+      //       icon: renderIcon(AlternateEmailFilled, 'email', {width: '100%', height: '100%'}),
+      //       key: "email"
+      //     }
+      //   ]
+      // }
     ]
 ;
 
@@ -82,7 +86,8 @@ export default defineComponent({
   components: {NMenu, NSplit},
   setup() {
     return {
-      menuOptions
+      mainMenuOptions,
+      linksMenuOptions
     };
   }
 });
@@ -90,23 +95,31 @@ export default defineComponent({
 </script>
 
 <template>
-  <n-split
-      :default-size="100" class="navbar"
-      style="display:
-      flex; align-items:
-      center;
-      height: 150px;"
-  >
-    <template #1>
+  <div class="navbar-container">
+    <n-split
+        :default-size="100" class="navbar"
+        style="display: flex; align-items: center; height: 150px; flex: 1;"
+    >
+      <template #1>
+        <n-menu
+            v-model:value="activeKey"
+            mode="horizontal"
+            :options="mainMenuOptions"
+            responsive
+            key="menu"
+        />
+      </template>
+    </n-split>
+    <div class="navbar-right">
       <n-menu
           v-model:value="activeKey"
           mode="horizontal"
-          :options="menuOptions"
+          :options="linksMenuOptions"
           responsive
-          key="menu"
+          key="menu-right"
       />
-    </template>
-  </n-split>
+    </div>
+  </div>
 </template>
 
 
