@@ -63,9 +63,8 @@ export default {
       this.renderer.setSize(this.$refs.sceneContainer.clientWidth, this.$refs.sceneContainer.clientHeight);
 
       //set up the renderer with the default settings for threejs.org/editor - revision r153
-      this.renderer.shadows = true;
-      this.renderer.shadowType = 1;
       this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
       this.renderer.setPixelRatio(window.devicePixelRatio);
       this.renderer.toneMapping = 0;
       this.renderer.toneMappingExposure = 1
@@ -126,14 +125,37 @@ export default {
       const sceneLight = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'light')
       sceneLight.intensity = 130
       sceneLight.castShadow = true
-      sceneLight.shadow.mapSize.width = 16384;
-      sceneLight.shadow.mapSize.height = 16384;
+      sceneLight.shadow.mapSize.width = 4096;
+      sceneLight.shadow.mapSize.height = 4096;
+      sceneLight.shadow.camera.near = 0.5;
+      sceneLight.shadow.camera.far = 500;
+      sceneLight.shadow.bias = -0.0005;
+      sceneLight.shadow.radius = 4;
       sceneLight.shadow.intensity = .65
       console.log(new THREE.WebGLRenderer().capabilities)
     },
     setupDisc: function () {
       const disc = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'spinning_disc')
       disc.castShadow = true;
+
+      // Clarify texture
+      const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+      disc.traverse((child) => {
+        if (child.isMesh && child.material) {
+          const materials = Array.isArray(child.material) ? child.material : [child.material];
+          materials.forEach((mat) => {
+            // Apply to all texture maps
+            ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((mapName) => {
+              if (mat[mapName]) {
+                mat[mapName].anisotropy = maxAnisotropy;
+                mat[mapName].minFilter = THREE.LinearMipmapLinearFilter;
+                mat[mapName].magFilter = THREE.LinearFilter;
+                mat[mapName].needsUpdate = true;
+              }
+            });
+          });
+        }
+      });
     },
     setupBackDrop: function () {
       const backDrop = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'back_drop')
