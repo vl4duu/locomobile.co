@@ -1,5 +1,13 @@
 <template>
   <div class="product-catalog">
+    <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true" focusable="false">
+      <filter id="remove-white">
+        <feColorMatrix type="matrix" values="1 0 0 0 0
+                                             0 1 0 0 0
+                                             0 0 1 0 0
+                                             -1.1 -1.1 -1.1 3.3 0"/>
+      </filter>
+    </svg>
     <div class="catalog-content">
       <h2>Product Catalog</h2>
       
@@ -189,14 +197,15 @@ h2 {
   width: 100%;
   aspect-ratio: 1;
   overflow: hidden;
-  background: #111;
+  background: transparent;
 }
 
 .product-image img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   transition: transform 0.5s ease;
+  filter: url(#remove-white) brightness(1.05);
 }
 
 .product-card:hover .product-image img {
