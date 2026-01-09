@@ -220,10 +220,8 @@ export default {
       window.removeEventListener('mousemove', this.onMouseMove);
     }
   },
-
 }
 </script>
-<style src="../assets/styles/LoadingScreen/loadingUtils.css"></style>
 <style>
 * {
   margin: 0;

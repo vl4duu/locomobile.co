@@ -42,11 +42,9 @@ onMounted(() => {
     <div class="scene-container" :class="{ 'fade-in': showScene }">
       <ThreeGLBScene @loaded="handleLoadEnd"/>
     </div>
-    <Transition name="fade" appear>
-      <div class="loading-container" :class="{ 'fade-out': loaded }">
-        <LoadingAnimation ref="loadingAnimationRef"/>
-      </div>
-    </Transition>
+    <div class="loading-container" :class="{ 'fade-out': loaded }">
+      <LoadingAnimation ref="loadingAnimationRef"/>
+    </div>
   </main>
 </template>
 
@@ -63,20 +61,20 @@ onMounted(() => {
 .loading-container {
   opacity: 1;
   transition: opacity 0.5s ease;
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  z-index: 10000;
+  background: var(--color-background);
+  display: flex;
+  justify-content: center;
+  align-items: center;
 }
 
 .loading-container.fade-out {
   opacity: 0;
   pointer-events: none;
-}
-
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.6s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
 }
 </style>
