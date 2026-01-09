@@ -49,6 +49,11 @@ onMounted(() => {
 </template>
 
 <style scoped>
+main {
+  width: 100%;
+  margin: 0;
+  padding: 0;
+}
 .scene-container {
   opacity: 0;
   transition: opacity 0.6s ease;
