@@ -1,8 +1,14 @@
 <script setup>
 import ThreeGLBScene from "@/components/ThreeGLBScene.vue";
 import NavBar from "@/components/NavBar.vue";
-import {ref} from 'vue'
+import ProductCatalog from "@/components/ProductCatalog.vue";
+import {ref, onMounted} from 'vue'
 import LoadingAnimation from "@/components/LoadingAnimation.vue";
+import Lenis from 'lenis'
+import gsap from 'gsap'
+import { ScrollTrigger } from 'gsap/ScrollTrigger'
+
+gsap.registerPlugin(ScrollTrigger)
 
 const loaded = ref(false);
 const showScene = ref(false);
@@ -15,6 +21,18 @@ const handleLoadEnd = async function () {
     showScene.value = true;
   }, 500 + 1000); // Loading fade-out (500ms) + 1 second delay (1000ms)
 }
+
+onMounted(() => {
+  const lenis = new Lenis()
+
+  lenis.on('scroll', ScrollTrigger.update)
+
+  gsap.ticker.add((time) => {
+    lenis.raf(time * 1000)
+  })
+
+  gsap.ticker.lagSmoothing(0)
+})
 </script>
 
 
