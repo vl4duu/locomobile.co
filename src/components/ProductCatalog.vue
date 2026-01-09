@@ -1,0 +1,296 @@
+<template>
+  <div class="product-catalog">
+    <div class="catalog-content">
+      <h2>Product Catalog</h2>
+      
+      <div v-if="loading" class="status-message">
+        <div class="spinner"></div>
+        <p>Fetching latest gear...</p>
+      </div>
+      
+      <div v-else-if="error" class="status-message error">
+        <p>Error: {{ error }}</p>
+        <button @click="fetchProducts" class="retry-button">Retry</button>
+      </div>
+
+      <div v-else class="product-grid">
+        <div v-for="product in products" :key="product.id" class="product-card">
+          <div class="product-image">
+            <img :src="product.images[0]?.src" :alt="product.title" />
+          </div>
+          <div class="product-info">
+            <h3>{{ product.title }}</h3>
+            <p class="price">${{ getPrice(product) }}</p>
+            <div class="card-actions">
+              <button class="details-button">Details</button>
+              <button @click="handleBuyNow(product)" class="buy-button">Buy Now</button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<script setup>
+import { ref, onMounted } from 'vue';
+
+const products = ref([]);
+const loading = ref(true);
+const error = ref(null);
+
+const fetchProducts = async () => {
+  loading.value = true;
+  error.value = null;
+  try {
+    const response = await fetch('http://localhost:5000/api/products');
+    if (!response.ok) {
+      throw new Error(`Failed to fetch products: ${response.statusText}`);
+    }
+    const data = await response.json();
+    products.value = data.data || [];
+  } catch (err) {
+    console.error('Error fetching products:', err);
+    error.value = err.message;
+  } finally {
+    loading.value = false;
+  }
+};
+
+const getPrice = (product) => {
+  if (!product.variants || product.variants.length === 0) return '0.00';
+  const prices = product.variants
+    .map(v => v.price)
+    .filter(p => p !== undefined && p !== null);
+  
+  if (prices.length === 0) return '0.00';
+  
+  const minPrice = Math.min(...prices);
+  return (minPrice / 100).toFixed(2);
+};
+
+const handleBuyNow = async (product) => {
+  // Use the first variant's price for now, or min price
+  const price = product.variants[0]?.price || 2000;
+  const name = product.title;
+  const image = product.images[0]?.src;
+
+  try {
+    const response = await fetch('http://localhost:5000/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ name, price, image }),
+    });
+    
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      alert('Could not start checkout. Please try again.');
+    }
+  } catch (err) {
+    console.error('Checkout error:', err);
+    alert('Error connecting to the payment server.');
+  }
+};
+
+onMounted(fetchProducts);
+</script>
+
+<style scoped>
+.product-catalog {
+  width: 100vw;
+  margin: 0;
+  min-height: 100vh;
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 15vh;
+  padding-bottom: 10vh;
+  color: white;
+  overflow: hidden;
+  isolation: isolate;
+  background: 
+    url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.22'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+    rgba(0, 0, 0, 0.75);
+  
+  background-blend-mode: soft-light;
+  animation: static-move 0.2s infinite;
+  backdrop-filter: blur(20px);
+  
+  -webkit-mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 1) 10%,
+    rgba(0, 0, 0, 1) 100%
+  );
+  mask-image: linear-gradient(
+    to bottom,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 1) 10%,
+    rgba(0, 0, 0, 1) 100%
+  );
+}
+
+@keyframes static-move {
+  0% { background-position: 0 0; }
+  100% { background-position: 10px 10px; }
+}
+
+.catalog-content {
+  max-width: 1200px;
+  width: 90%;
+  text-align: center;
+}
+
+h2 {
+  font-size: 3.5rem;
+  margin-bottom: 3rem;
+  text-transform: uppercase;
+  letter-spacing: 0.2rem;
+  font-weight: 800;
+  text-shadow: 0 0 20px rgba(255, 255, 255, 0.3);
+}
+
+.status-message {
+  padding: 4rem;
+  font-size: 1.5rem;
+}
+
+.product-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 2.5rem;
+  width: 100%;
+}
+
+.product-card {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 5px;
+  overflow: hidden;
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  display: flex;
+  flex-direction: column;
+}
+
+.product-card:hover {
+  transform: translateY(-10px);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+  background: rgba(255, 255, 255, 0.08);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.product-image {
+  width: 100%;
+  aspect-ratio: 1;
+  overflow: hidden;
+  background: #111;
+}
+
+.product-image img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.5s ease;
+}
+
+.product-card:hover .product-image img {
+  transform: scale(1.05);
+}
+
+.product-info {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  flex-grow: 1;
+  text-align: left;
+}
+
+.product-info h3 {
+  font-size: 1.25rem;
+  margin-bottom: 0.75rem;
+  line-height: 1.4;
+  height: 2.8em;
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.price {
+  font-size: 1.5rem;
+  font-weight: 700;
+  color: #fff;
+  margin-bottom: 1.5rem;
+}
+
+.card-actions {
+  display: flex;
+  gap: 1rem;
+  margin-top: auto;
+}
+
+.buy-button, .details-button {
+  padding: 0.8rem 1rem;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.2s ease;
+  flex: 1;
+}
+
+.buy-button {
+  background: #fff;
+  color: #000;
+}
+
+.buy-button:hover {
+  background: #eee;
+  transform: scale(1.02);
+}
+
+.details-button {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.2);
+}
+
+.details-button:hover {
+  background: rgba(255, 255, 255, 0.2);
+}
+
+.spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid rgba(255, 255, 255, 0.1);
+  border-left-color: #fff;
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+  margin: 0 auto 1rem;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.retry-button {
+  margin-top: 1rem;
+  padding: 0.5rem 1.5rem;
+  background: #fff;
+  color: #000;
+  border: none;
+  border-radius: 5px;
+  cursor: pointer;
+}
+
+@media (max-width: 768px) {
+  h2 { font-size: 2.5rem; }
+  .product-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+}
+</style>
