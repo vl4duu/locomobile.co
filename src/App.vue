@@ -3,12 +3,9 @@ import ThreeGLBScene from "@/components/ThreeGLBScene.vue";
 import NavBar from "@/components/NavBar.vue";
 import {ref} from 'vue'
 import LoadingAnimation from "@/components/LoadingAnimation.vue";
-import ApiTest from "@/components/ApiTest.vue";
 
 const loaded = ref(false);
 const showScene = ref(false);
-const showApiTest = ref(false);
-const apiData = ref(null);
 
 const handleLoadEnd = async function () {
   loaded.value = true;
@@ -17,32 +14,6 @@ const handleLoadEnd = async function () {
   setTimeout(() => {
     showScene.value = true;
   }, 500 + 1000); // Loading fade-out (500ms) + 1 second delay (1000ms)
-  
-  // Wait for scene transition to complete, then fetch API data
-  setTimeout(async () => {
-    try {
-      const response = await fetch('/api/hello', {
-        method: 'GET',
-        credentials: 'include',
-        headers: {
-          'Content-Type': 'application/json',
-          'Accept': 'application/json'
-        }
-      });
-      if (response.ok) {
-        const data = await response.json();
-        apiData.value = data;
-        // Only show component after API call completes successfully
-        showApiTest.value = true;
-      } else {
-        // Silently handle errors - don't show component if API fails
-        console.error('API Error:', response.status);
-      }
-    } catch (e) {
-      // Silently handle errors - don't show component if API fails
-      console.error('API Error:', e);
-    }
-  }, 500 + 1000 + 600); // Loading fade-out (500ms) + 1 second delay (1000ms) + scene fade-in (600ms)
 }
 </script>
 
@@ -57,9 +28,6 @@ const handleLoadEnd = async function () {
       <div class="loading-container" :class="{ 'fade-out': loaded }">
         <LoadingAnimation ref="loadingAnimationRef"/>
       </div>
-    </Transition>
-    <Transition name="fade">
-      <ApiTest v-if="showApiTest" :data="apiData"/>
     </Transition>
   </main>
 </template>
