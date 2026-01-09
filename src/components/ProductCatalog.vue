@@ -10,12 +10,12 @@
     </svg>
     <div class="catalog-content">
       <h2>Product Catalog</h2>
-      
+
       <div v-if="loading" class="status-message">
         <div class="spinner"></div>
         <p>Fetching latest gear...</p>
       </div>
-      
+
       <div v-else-if="error" class="status-message error">
         <p>Error: {{ error }}</p>
         <button @click="fetchProducts" class="retry-button">Retry</button>
@@ -24,7 +24,7 @@
       <div v-else class="product-grid">
         <div v-for="product in products" :key="product.id" class="product-card">
           <div class="product-image">
-            <img :src="product.images[0]?.src" :alt="product.title" />
+            <img :src="product.images[0]?.src" :alt="product.title"/>
           </div>
           <div class="product-info">
             <h3>{{ product.title }}</h3>
@@ -69,11 +69,11 @@ const fetchProducts = async () => {
 const getPrice = (product) => {
   if (!product.variants || product.variants.length === 0) return '0.00';
   const prices = product.variants
-    .map(v => v.price)
-    .filter(p => p !== undefined && p !== null);
-  
+      .map(v => v.price)
+      .filter(p => p !== undefined && p !== null);
+
   if (prices.length === 0) return '0.00';
-  
+
   const minPrice = Math.min(...prices);
   return (minPrice / 100).toFixed(2);
 };
@@ -90,9 +90,9 @@ const handleBuyNow = async (product) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ name, price, image }),
+      body: JSON.stringify({name, price, image}),
     });
-    
+
     const data = await response.json();
     if (data.url) {
       window.location.href = data.url;
@@ -123,31 +123,34 @@ onMounted(fetchProducts);
   color: white;
   overflow: hidden;
   isolation: isolate;
-  background: 
-    url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.22'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
-    rgba(0, 0, 0, 0.75);
-  
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.22'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+  rgba(0, 0, 0, 0.75);
+
   background-blend-mode: soft-light;
   animation: static-move 0.2s infinite;
   backdrop-filter: blur(20px);
-  
+
   -webkit-mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 1) 10%,
-    rgba(0, 0, 0, 1) 100%
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 1) 10%,
+      rgba(0, 0, 0, 1) 100%
   );
   mask-image: linear-gradient(
-    to bottom,
-    rgba(0, 0, 0, 0) 0%,
-    rgba(0, 0, 0, 1) 10%,
-    rgba(0, 0, 0, 1) 100%
+      to bottom,
+      rgba(0, 0, 0, 0) 0%,
+      rgba(0, 0, 0, 1) 10%,
+      rgba(0, 0, 0, 1) 100%
   );
 }
 
 @keyframes static-move {
-  0% { background-position: 0 0; }
-  100% { background-position: 10px 10px; }
+  0% {
+    background-position: 0 0;
+  }
+  100% {
+    background-position: 10px 10px;
+  }
 }
 
 .catalog-content {
@@ -286,7 +289,9 @@ h2 {
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .retry-button {
@@ -300,7 +305,12 @@ h2 {
 }
 
 @media (max-width: 768px) {
-  h2 { font-size: 2.5rem; }
-  .product-grid { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+  h2 {
+    font-size: 2.5rem;
+  }
+
+  .product-grid {
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  }
 }
 </style>
