@@ -61,45 +61,17 @@ const mainMenuOptions = [
 ;
 
 const linksMenuOptions = [
-      // {
-      //   label: "",
-      //   key: "links-header",
-      //   icon: () => h(renderIcon(Link, 'links-header', {width: '130%', height: '130%'}),
-      //       {style: {}}),
-      //   class: "links-header",
-      //   children: [
-      //     {
-      //       type: "group",
-      //       label: () => h(
-      //           'h3',
-      //           'Catch me !'
-      //       ),
-      //       key: "Links",
-      //       children: [
-      //         {
-      //           label: "Youtube",
-      //           key: "youtube",
-      //           icon: renderIcon(LogoYoutube, defaultIconStyle, 'youtube', {width: '100%', height: '100%'}),
-      //         },
-      //         {
-      //           label: "Mixcloud",
-      //           key: "mixcloud",
-      //           icon: renderIcon(Mixcloud, defaultIconStyle, 'mixcloud', {width: '100%', height: '100%'}),
-      //         }
-      //       ]
-      //     },
-      //     {
-      //       label: "Twitch",
-      //       key: "twitch",
-      //       icon: renderIcon(LogoTwitch, 'twitch', {width: '100%', height: '100%'}),
-      //     },
-      //     {
-      //       label: "contact@locomobile.co",
-      //       icon: renderIcon(AlternateEmailFilled, 'email', {width: '100%', height: '100%'}),
-      //       key: "email"
-      //     }
-      //   ]
-      // }
+      {
+        label: "",
+        key: "donate",
+        icon: () => h("img", {
+          src: dollarSign,
+          alt: "Donate",
+          class: 'dollar-sign',
+          onClick: handleCheckout,
+          style: { cursor: 'pointer' }
+        }),
+      }
     ]
 ;
 
@@ -116,21 +88,16 @@ export default defineComponent({
 </script>
 
 <template>
-  <div class="navbar-container">
-    <n-split
-        :default-size="100" class="navbar"
-        style="display: flex; align-items: center; height: 150px; flex: 1;"
-    >
-      <template #1>
-        <n-menu
-            v-model:value="activeKey"
-            mode="horizontal"
-            :options="mainMenuOptions"
-            responsive
-            key="menu"
-        />
-      </template>
-    </n-split>
+  <div class="navbar-container" style="display: flex; align-items: center; justify-content: space-between; position: fixed; top: 0; left: 0; width: 100%; z-index: 9999; height: 100px; padding: 0 20px;">
+    <div class="navbar-left" style="flex: 1;">
+      <n-menu
+          v-model:value="activeKey"
+          mode="horizontal"
+          :options="mainMenuOptions"
+          responsive
+          key="menu"
+      />
+    </div>
     <div class="navbar-right">
       <n-menu
           v-model:value="activeKey"
