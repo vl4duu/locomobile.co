@@ -1,5 +1,6 @@
 <script>
 import {defineComponent, h} from "vue";
+import { API_BASE_URL } from '@/config';
 import {NIcon, NMenu, NSplit} from "naive-ui";
 import {
   LogoYoutube,
@@ -21,7 +22,7 @@ function renderIcon(icon, classname, styling = defaultIconStyle) {
 
 const handleCheckout = async () => {
   try {
-    const response = await fetch('/api/create-checkout-session', {
+    const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -41,7 +41,8 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import {onMounted, ref} from 'vue';
+import {API_BASE_URL} from '@/config';
 
 const products = ref([]);
 const loading = ref(true);
@@ -51,7 +52,7 @@ const fetchProducts = async () => {
   loading.value = true;
   error.value = null;
   try {
-    const response = await fetch('http://localhost:5000/api/products');
+    const response = await fetch(`${API_BASE_URL}/api/products`);
     if (!response.ok) {
       throw new Error(`Failed to fetch products: ${response.statusText}`);
     }
@@ -84,7 +85,7 @@ const handleBuyNow = async (product) => {
   const image = product.images[0]?.src;
 
   try {
-    const response = await fetch('http://localhost:5000/api/create-checkout-session', {
+    const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
