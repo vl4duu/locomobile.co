@@ -10,6 +10,7 @@ import {AlternateEmailFilled} from "@vicons/material";
 import {Link} from "@vicons/tabler";
 import radioTowerIcon from '../assets/images/radio-tower.png'
 import whiteLogo from "../assets/images/locomobile-title.png";
+import dollarSign from "../assets/images/white-dollar-sign.png";
 
 const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, paddingRight: 10}
 
@@ -17,6 +18,26 @@ const defaultIconStyle = {height: '100%', width: '100%', paddingBottom: 10, padd
 function renderIcon(icon, classname, styling = defaultIconStyle) {
   return () => h(NIcon, null, {default: () => h(icon, {class: classname, style: styling})});
 }
+
+const handleCheckout = async () => {
+  try {
+    const response = await fetch('/api/create-checkout-session', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const data = await response.json();
+    if (data.url) {
+      window.location.href = data.url;
+    } else {
+      console.error('Failed to create checkout session', data.error);
+    }
+  } catch (error) {
+    console.error('Error during checkout:', error);
+  }
+};
 
 const mainMenuOptions = [
       {
