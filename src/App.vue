@@ -45,6 +45,7 @@ onMounted(() => {
     <div class="loading-container" :class="{ 'fade-out': loaded }">
       <LoadingAnimation ref="loadingAnimationRef"/>
     </div>
+    <ProductCatalog />
   </main>
 </template>
 
@@ -54,9 +55,14 @@ main {
   margin: 0;
   padding: 0;
 }
+
 .scene-container {
   opacity: 0;
   transition: opacity 0.6s ease;
+  height: 100vh;
+  width: 100%;
+  position: relative;
+  z-index: 1;
 }
 
 .scene-container.fade-in {
