@@ -24,7 +24,7 @@
       <div v-else class="product-grid">
         <div v-for="product in products" :key="product.id" class="product-card">
           <div class="product-image">
-            <img :src="product.images[0]?.src" :alt="product.title"/>
+            <img :src="product.images[0]?.src" :alt="product.title" draggable="false"/>
           </div>
           <div class="product-info">
             <h3>{{ product.title }}</h3>
@@ -123,24 +123,50 @@ onMounted(fetchProducts);
   color: white;
   overflow: hidden;
   isolation: isolate;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.22'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
-  rgba(0, 0, 0, 0.75);
+  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.45'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
+  rgba(0, 0, 0, 0.65);
 
-  background-blend-mode: soft-light;
+  background-blend-mode: overlay;
   animation: static-move 0.2s infinite;
   backdrop-filter: blur(20px);
 
   -webkit-mask-image: linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 1) 10%,
-      rgba(0, 0, 0, 1) 100%
+      transparent,
+      rgba(0, 0, 0, 0.013) 16.2px,
+      rgba(0, 0, 0, 0.049) 31px,
+      rgba(0, 0, 0, 0.104) 45px,
+      rgba(0, 0, 0, 0.175) 58px,
+      rgba(0, 0, 0, 0.259) 70.6px,
+      rgba(0, 0, 0, 0.352) 82.4px,
+      rgba(0, 0, 0, 0.45) 94.2px,
+      rgba(0, 0, 0, 0.55) 105.8px,
+      rgba(0, 0, 0, 0.648) 117.6px,
+      rgba(0, 0, 0, 0.741) 129.4px,
+      rgba(0, 0, 0, 0.825) 142px,
+      rgba(0, 0, 0, 0.896) 155px,
+      rgba(0, 0, 0, 0.951) 169px,
+      rgba(0, 0, 0, 0.987) 183.8px,
+      #000 200px
   );
   mask-image: linear-gradient(
       to bottom,
-      rgba(0, 0, 0, 0) 0%,
-      rgba(0, 0, 0, 1) 10%,
-      rgba(0, 0, 0, 1) 100%
+      transparent,
+      rgba(0, 0, 0, 0.013) 16.2px,
+      rgba(0, 0, 0, 0.049) 31px,
+      rgba(0, 0, 0, 0.104) 45px,
+      rgba(0, 0, 0, 0.175) 58px,
+      rgba(0, 0, 0, 0.259) 70.6px,
+      rgba(0, 0, 0, 0.352) 82.4px,
+      rgba(0, 0, 0, 0.45) 94.2px,
+      rgba(0, 0, 0, 0.55) 105.8px,
+      rgba(0, 0, 0, 0.648) 117.6px,
+      rgba(0, 0, 0, 0.741) 129.4px,
+      rgba(0, 0, 0, 0.825) 142px,
+      rgba(0, 0, 0, 0.896) 155px,
+      rgba(0, 0, 0, 0.951) 169px,
+      rgba(0, 0, 0, 0.987) 183.8px,
+      #000 200px
   );
 }
 
@@ -180,22 +206,6 @@ h2 {
   width: 100%;
 }
 
-.product-card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  border-radius: 5px;
-  overflow: hidden;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  display: flex;
-  flex-direction: column;
-}
-
-.product-card:hover {
-  transform: translateY(-10px);
-  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-  background: rgba(255, 255, 255, 0.08);
-  border-color: rgba(255, 255, 255, 0.2);
-}
 
 .product-image {
   width: 100%;
@@ -210,11 +220,10 @@ h2 {
   object-fit: contain;
   transition: transform 0.5s ease;
   filter: url(#remove-white) brightness(1.05);
+  user-select: none;
+  -webkit-user-drag: none;
 }
 
-.product-card:hover .product-image img {
-  transform: scale(1.05);
-}
 
 .product-info {
   padding: 1.5rem;
