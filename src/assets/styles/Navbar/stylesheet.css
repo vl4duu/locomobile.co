@@ -20,10 +20,6 @@
         height: 30px;
         margin-bottom: -47px;
         padding-left: 10px;
-
-    }
-
-    .locomobile-title {
         font-family: imported-font;
     }
 
@@ -46,12 +42,16 @@
     .radio-tower {
         height: 70px;
         padding-left: 10px;
+        margin-top: 10px;
     }
 
     .dollar-sign {
-        height: 50px;
+        height: 70px;
+        padding-left: 10px;
+        margin-top: 10px;
+        width: auto;
+        object-fit: contain;
         cursor: pointer;
-        margin-top: 30px;
     }
 
 }
@@ -65,18 +65,25 @@
         z-index: 9999;
     }
 
+    .v-overflow {
+        overflow: visible;
+        color: #4fbb69;
+        height: 70px;
+        vertical-align: top;
+    }
+
     .radio-tower {
         height: 70px;
-        padding-left: 15px;
+        padding-left: 10px;
         margin-top: 10px;
         user-select: none;
     }
 
     .locomobile-title {
-        height: 35px;
-        margin-top: 30px;
-        margin-bottom: -10px;
-        padding-left: 15px;
+        height: 30px;
+        margin-bottom: -47px;
+        padding-left: 10px;
+        font-family: imported-font;
     }
 
     .links-header {
@@ -91,9 +98,13 @@
     }
 
     .dollar-sign {
-        height: 60px;
+        height: 70px;
+        padding-left: 10px;
+        margin-top: 10px;
+        width: auto;
+        object-fit: contain;
         cursor: pointer;
-        margin-top: 40px;
+        user-select: none;
     }
 
 

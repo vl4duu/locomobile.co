@@ -1,5 +1,6 @@
 <script>
 import {defineComponent, h} from "vue";
+import { navigation } from '@/navigation';
 import { API_BASE_URL } from '@/config';
 import {NIcon, NMenu, NSplit} from "naive-ui";
 import {
@@ -40,28 +41,38 @@ const handleCheckout = async () => {
   }
 };
 
-const mainMenuOptions = [
+export default defineComponent({
+  components: {NMenu, NSplit},
+  setup() {
+    const handleLogoClick = () => {
+      navigation.navigate('home');
+    };
+
+    const mainMenuOptions = [
       {
         icon: () => h("img", {
           src: radioTowerIcon,
           alt: "Custom Icon",
           class: 'radio-tower',
+          onClick: handleLogoClick,
+          style: { cursor: 'pointer' }
         }),
         label: () => h(
             "img",
             {
               src: whiteLogo,
               alt: "Custom Icon",
-              class: 'locomobile-title'
+              class: 'locomobile-title',
+              onClick: handleLogoClick,
+              style: { cursor: 'pointer' }
             },
             "Locomobile"
         ),
         type: 'text'
       }
-    ]
-;
+    ];
 
-const linksMenuOptions = [
+    const linksMenuOptions = [
       {
         label: "",
         key: "donate",
@@ -72,13 +83,10 @@ const linksMenuOptions = [
           onClick: handleCheckout,
           style: { cursor: 'pointer' }
         }),
+        type: 'text'
       }
-    ]
-;
+    ];
 
-export default defineComponent({
-  components: {NMenu, NSplit},
-  setup() {
     return {
       mainMenuOptions,
       linksMenuOptions
