@@ -30,7 +30,7 @@
             <h3>{{ product.title }}</h3>
             <p class="price">${{ getPrice(product) }}</p>
             <div class="card-actions">
-              <button class="details-button">Details</button>
+              <button @click="navigation.navigate('product-details', { id: product.id })" class="details-button">Details</button>
               <button @click="handleBuyNow(product)" class="buy-button">Buy Now</button>
             </div>
           </div>
@@ -41,8 +41,10 @@
 </template>
 
 <script setup>
-import {onMounted, ref} from 'vue';
+import {onMounted, ref, nextTick} from 'vue';
 import {API_BASE_URL} from '@/config';
+import { navigation } from '@/navigation';
+import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const products = ref([]);
 const loading = ref(true);
@@ -63,6 +65,9 @@ const fetchProducts = async () => {
     error.value = err.message;
   } finally {
     loading.value = false;
+    nextTick(() => {
+      ScrollTrigger.refresh();
+    });
   }
 };
 
@@ -78,11 +83,21 @@ const getPrice = (product) => {
   return (minPrice / 100).toFixed(2);
 };
 
-const handleBuyNow = async (product) => {
-  // Use the first variant's price for now, or min price
-  const price = product.variants[0]?.price || 2000;
-  const name = product.title;
-  const image = product.images[0]?.src;
+const handleBuyNow = async (productData) => {
+  // Check if we got the full product object from ProductDetails or a simplified one from the grid
+  // If productData has a selectedVariant, it's from ProductDetails
+  let name, price, image;
+
+  if (productData.selectedVariant) {
+    name = productData.title;
+    price = productData.price;
+    image = productData.image;
+  } else {
+    // From main catalog grid
+    name = productData.title;
+    price = productData.variants[0]?.price || 2000;
+    image = productData.images[0]?.src;
+  }
 
   try {
     const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
@@ -265,6 +280,10 @@ h2 {
   font-weight: 600;
   transition: all 0.2s ease;
   flex: 1;
+  text-decoration: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .buy-button {
