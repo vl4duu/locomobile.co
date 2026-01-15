@@ -26,6 +26,10 @@
 }
 
 @media screen and (min-width: 600px) {
+    .n-menu div {
+        height: 70px;
+    }
+
     .n-split n-split--horizontal navbar {
         height: 200px;
     }
@@ -35,7 +39,7 @@
     }
 
     .n-menu-item-content {
-        padding-top: 0;
+        padding-top: 100px;
     }
 
 

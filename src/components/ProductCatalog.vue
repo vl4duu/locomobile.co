@@ -118,7 +118,7 @@ onMounted(fetchProducts);
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding-top: 15vh;
+  padding-top: 200px;
   padding-bottom: 10vh;
   color: white;
   overflow: hidden;
