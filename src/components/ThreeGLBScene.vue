@@ -345,7 +345,7 @@ export default {
   left: 0;
   outline: none;
   z-index: 0;
-  touch-action: none;
+  pointer-events: none;
 }
 
 html,
