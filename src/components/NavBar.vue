@@ -21,24 +21,8 @@ function renderIcon(icon, classname, styling = defaultIconStyle) {
   return () => h(NIcon, null, {default: () => h(icon, {class: classname, style: styling})});
 }
 
-const handleCheckout = async () => {
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
-
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      console.error('Failed to create checkout session', data.error);
-    }
-  } catch (error) {
-    console.error('Error during checkout:', error);
-  }
+const handleCheckout = () => {
+  navigation.navigate('pay-list');
 };
 
 export default defineComponent({

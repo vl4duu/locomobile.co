@@ -84,9 +84,7 @@ const getPrice = (product) => {
   return (minPrice / 100).toFixed(2);
 };
 
-const handleBuyNow = async (productData) => {
-  // Check if we got the full product object from ProductDetails or a simplified one from the grid
-  // If productData has a selectedVariant, it's from ProductDetails
+const handleBuyNow = (productData) => {
   let name, price, image;
 
   if (productData.selectedVariant) {
@@ -94,31 +92,13 @@ const handleBuyNow = async (productData) => {
     price = productData.price;
     image = productData.image;
   } else {
-    // From main catalog grid
     name = productData.title;
     price = productData.variants[0]?.price || 2000;
     image = productData.images[0]?.src;
   }
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({name, price, image}),
-    });
-
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert('Could not start checkout. Please try again.');
-    }
-  } catch (err) {
-    console.error('Checkout error:', err);
-    alert('Error connecting to the payment server.');
-  }
+  cart.addItem({ name, price, image });
+  navigation.navigate('pay-list');
 };
 
 onMounted(fetchProducts);

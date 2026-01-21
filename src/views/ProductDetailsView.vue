@@ -132,32 +132,15 @@ const displayPrice = computed(() => {
   return (price / 100).toFixed(2);
 });
 
-const handleBuy = async () => {
+const handleBuy = () => {
   if (!product.value || !selectedVariant.value) return;
 
   const name = product.value.title;
   const price = selectedVariant.value.price;
   const image = currentImage.value;
 
-  try {
-    const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ name, price, image }),
-    });
-
-    const data = await response.json();
-    if (data.url) {
-      window.location.href = data.url;
-    } else {
-      alert('Could not start checkout. Please try again.');
-    }
-  } catch (err) {
-    console.error('Checkout error:', err);
-    alert('Error connecting to the payment server.');
-  }
+  cart.addItem({ name, price, image });
+  navigation.navigate('pay-list');
 };
 </script>
 
