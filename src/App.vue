@@ -2,6 +2,7 @@
 import NavBar from "@/components/NavBar.vue";
 import HomeView from "@/views/HomeView.vue";
 import ProductDetailsView from "@/views/ProductDetailsView.vue";
+import PayList from "@/views/PayList.vue";
 import { navigation } from "@/navigation";
 import { onMounted, watch, nextTick } from 'vue'
 import Lenis from 'lenis'
@@ -35,6 +36,7 @@ watch(() => navigation.currentView, () => {
     <NavBar/>
     <HomeView v-if="navigation.currentView === 'home'" />
     <ProductDetailsView v-if="navigation.currentView === 'product-details'" :id="navigation.params.id" />
+    <PayList v-if="navigation.currentView === 'pay-list'" />
   </main>
 </template>
 
