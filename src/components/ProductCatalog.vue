@@ -44,6 +44,7 @@
 import {onMounted, ref, nextTick} from 'vue';
 import {API_BASE_URL} from '@/config';
 import { navigation } from '@/navigation';
+import { cart } from '@/cart';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const products = ref([]);

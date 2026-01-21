@@ -65,6 +65,7 @@
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue';
 import { navigation } from '@/navigation';
+import { cart } from '@/cart';
 import { API_BASE_URL } from '@/config';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
