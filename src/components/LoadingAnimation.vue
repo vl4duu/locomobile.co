@@ -58,7 +58,7 @@
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 80px;
+  gap: 140px;
 }
 
 .loading-text {
@@ -67,7 +67,8 @@
   font-size: 1.25rem;
   font-weight: 600;
   margin: 0;
-  letter-spacing: 0.05em;
+  letter-spacing: 1em;
+  text-indent: 2.5em; /* Pushed a bit to the right as requested */
   text-align: center;
   position: relative;
   z-index: 10;
