@@ -7,7 +7,6 @@
 <script>
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
-import {getCurrentInstance} from 'vue'
 import NavBar from "@/components/NavBar.vue";
 import LoadingAnimation from "@/components/LoadingAnimation.vue";
 
@@ -17,66 +16,118 @@ export default {
   data() {
     return {
       loading: true,
-      mouse: new THREE.Vector2(),
-      rotationTarget: new THREE.Vector2(),
       displaySize: {width: null, height: null},
-      windowHalfX: window.innerWidth / 2,
-      windowHalfY: window.innerHeight / 2,
-
-      /**Used to store scene data */
-      instance: getCurrentInstance(),
-      elements: [],
-
-      clock: new THREE.Clock(),
-      mixer: null,
-
-      camera: null,
-      renderer: null,
       defaultFov: 40,
-
       loadPercent: null
     }
   },
+  created() {
+    // Non-reactive Three.js objects
+    this.scene = null;
+    this.camera = null;
+    this.renderer = null;
+    this.mixer = null;
+    this.model = null;
+    this.clock = new THREE.Clock();
+    this.mouse = new THREE.Vector2();
+    this.rotationTarget = new THREE.Vector2();
+    this.windowHalfX = window.innerWidth / 2;
+    this.windowHalfY = window.innerHeight / 2;
+    this.animationId = null;
+  },
   async mounted() {
+    if (!this.isWebGLAvailable()) {
+      console.error("WebGL is not supported on this device/browser.");
+      this.loading = false;
+      return;
+    }
     this.initThree();
     this.addEventListeners()
     this.loadScene();
     this.animate();
   },
-  beforeDestroy() {
+  beforeUnmount() {
     this.removeEventListeners()
-    if (this.renderer) {
-      this.renderer.dispose();
-    }
+    this.disposeThree();
   },
   methods: {
+    isWebGLAvailable() {
+      try {
+        const canvas = document.createElement('canvas');
+        return !!(window.WebGLRenderingContext && (canvas.getContext('webgl') || canvas.getContext('experimental-webgl')));
+      } catch (e) {
+        return false;
+      }
+    },
     initThree() {
-      const {proxy} = this.instance;
-      proxy.$scene = new THREE.Scene();
-      proxy.$elements = [];
+      console.log("Initializing Three.js scene...");
+      if (this.scene) {
+        this.scene.traverse(obj => {
+          if (obj.geometry) obj.geometry.dispose();
+          if (obj.material) {
+            if (Array.isArray(obj.material)) obj.material.forEach(m => m.dispose());
+            else obj.material.dispose();
+          }
+        });
+      }
+      this.scene = new THREE.Scene();
 
-      // Camera
-      //Renderer does the job of rendering the graphics
-      const canvas = document.querySelector('.webgl');
+      const canvas = this.$refs.sceneContainer;
+      if (!canvas) {
+        console.error("Canvas container not found!");
+        return;
+      }
 
-      this.renderer = new THREE.WebGLRenderer({canvas, antialias: true});
-      this.renderer.setSize(this.$refs.sceneContainer.clientWidth, this.$refs.sceneContainer.clientHeight);
+      if (this.renderer) {
+        this.renderer.dispose();
+      }
 
-      //set up the renderer with the default settings for threejs.org/editor - revision r153
+      try {
+        this.renderer = new THREE.WebGLRenderer({
+          canvas,
+          antialias: true,
+          alpha: true,
+          powerPreference: "high-performance",
+          precision: "mediump"
+        });
+        console.log("Renderer created successfully");
+      } catch (e) {
+        console.error("Failed to create WebGL renderer:", e);
+        return;
+      }
+      
+      // iOS performance and compatibility settings
       this.renderer.shadowMap.enabled = true;
       this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
-      this.renderer.setPixelRatio(window.devicePixelRatio);
-      this.renderer.toneMapping = 0;
-      this.renderer.toneMappingExposure = 1
-      this.renderer.useLegacyLights = false;
       this.renderer.toneMapping = THREE.NoToneMapping;
-      this.renderer.setClearColor(949390, 0);
-      this.renderer.outputColorSpace = THREE.SRGBColorSpace
       this.renderer.setClearColor(0x000000, 0); // Transparent background
+      this.renderer.outputColorSpace = THREE.SRGBColorSpace;
+      
+      console.log("Renderer initialized. Capabilities:", {
+        maxAnisotropy: this.renderer.capabilities.getMaxAnisotropy(),
+        maxPrecision: this.renderer.capabilities.precision,
+        isWebGL2: this.renderer.capabilities.isWebGL2
+      });
+    },
+    handleContextLost(event) {
+      event.preventDefault();
+      console.warn('WebGL Context Lost');
+      if (this.animationId) {
+        cancelAnimationFrame(this.animationId);
+      }
+    },
+    handleContextRestored() {
+      console.info('WebGL Context Restored');
+      this.initThree();
+      this.loadScene();
+      this.animate();
     },
     loadScene: function () {
       const loadingManager = new THREE.LoadingManager(() => {
-        this.loading = false
+        this.loading = false;
+        this.$nextTick(() => {
+          this.updateCameraAspect();
+        });
         this.$emit('loaded');
       });
 
@@ -84,24 +135,15 @@ export default {
       loader.load(
           '/spinning-disc.gltf',
           (gltf) => {
-            gltf.scene.traverse((obj) => {
-              this.instance.proxy.$elements.push(obj)
-            })
-
-            for (let i = 1; i < this.instance.proxy.$elements.length; i++) {
-              if (this.instance.proxy.$elements[i].name !== 'front_view_camera') {
-                this.instance.proxy.$elements[0].add(this.instance.proxy.$elements[i]);
-              }
-            }
-            this.instance.proxy.$scene.add(this.instance.proxy.$elements[0])
-
-            const camera = this.instance.proxy.$elements.find((el) => el.name === 'front_view_camera');
-            this.instance.proxy.$scene.add(camera);
+            this.model = gltf.scene;
+            this.scene.add(this.model);
             this.setupScene(gltf);
-
+          },
+          undefined,
+          (error) => {
+            console.error('An error happened during loading the GLTF model', error);
           }
       );
-
     },
     setupScene: function (gltf) {
       this.setupAnimationMixer(gltf);
@@ -112,62 +154,75 @@ export default {
     },
     setupAnimationMixer: function (gltf) {
       if (gltf.animations.length > 0) {
-        this.mixer = new THREE.AnimationMixer(this.instance.proxy.$scene);
+        this.mixer = new THREE.AnimationMixer(this.model);
         this.mixer.clipAction(gltf.animations[0]).play();
       }
     },
     setupCamera: function () {
-      const sceneCamera = this.instance.proxy.$scene.children[1]
-      sceneCamera.aspect = this.$refs.sceneContainer.clientWidth / this.$refs.sceneContainer.clientHeight;
-      this.camera = sceneCamera
+      const sceneCamera = this.model.getObjectByName('front_view_camera');
+      if (sceneCamera) {
+        this.camera = sceneCamera;
+        this.camera.aspect = window.innerWidth / window.innerHeight;
+        this.camera.updateProjectionMatrix();
+      } else {
+        console.warn("Camera 'front_view_camera' not found, creating default.");
+        this.camera = new THREE.PerspectiveCamera(this.defaultFov, window.innerWidth / window.innerHeight, 0.1, 1000);
+        this.camera.position.set(0, 0, 5);
+      }
     },
     setupLight: function () {
-      const sceneLight = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'light')
-      sceneLight.intensity = 130
-      sceneLight.castShadow = true
-      sceneLight.shadow.mapSize.width = 4096;
-      sceneLight.shadow.mapSize.height = 4096;
-      sceneLight.shadow.camera.near = 0.5;
-      sceneLight.shadow.camera.far = 500;
-      sceneLight.shadow.bias = -0.0005;
-      sceneLight.shadow.radius = 4;
-      sceneLight.shadow.intensity = .65
-      console.log(new THREE.WebGLRenderer().capabilities)
+      const sceneLight = this.model.getObjectByName('light');
+      if (sceneLight) {
+        sceneLight.intensity = 130
+        sceneLight.castShadow = true
+        // Reduce shadow map size for mobile if necessary, but 2048 is usually okay. 1024 is safer for older iPhones.
+        const shadowRes = window.innerWidth < 768 ? 1024 : 2048;
+        sceneLight.shadow.mapSize.width = shadowRes;
+        sceneLight.shadow.mapSize.height = shadowRes;
+        sceneLight.shadow.camera.near = 0.5;
+        sceneLight.shadow.camera.far = 500;
+        sceneLight.shadow.bias = -0.0005;
+        sceneLight.shadow.radius = 4;
+        sceneLight.shadow.intensity = .65
+      }
     },
     setupDisc: function () {
-      const disc = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'spinning_disc')
-      disc.castShadow = true;
+      const disc = this.model.getObjectByName('spinning_disc');
+      if (disc) {
+        disc.castShadow = true;
 
-      // Clarify texture
-      const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
-      disc.traverse((child) => {
-        if (child.isMesh && child.material) {
-          const materials = Array.isArray(child.material) ? child.material : [child.material];
-          materials.forEach((mat) => {
-            // Apply to all texture maps
-            ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((mapName) => {
-              if (mat[mapName]) {
-                mat[mapName].anisotropy = maxAnisotropy;
-                mat[mapName].minFilter = THREE.LinearMipmapLinearFilter;
-                mat[mapName].magFilter = THREE.LinearFilter;
-                mat[mapName].needsUpdate = true;
-              }
+        // Clarify texture
+        const maxAnisotropy = this.renderer.capabilities.getMaxAnisotropy();
+        disc.traverse((child) => {
+          if (child.isMesh && child.material) {
+            const materials = Array.isArray(child.material) ? child.material : [child.material];
+            materials.forEach((mat) => {
+              // Apply to all texture maps
+              ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((mapName) => {
+                if (mat[mapName]) {
+                  mat[mapName].anisotropy = Math.min(maxAnisotropy, 4); // Cap anisotropy for mobile performance
+                  mat[mapName].minFilter = THREE.LinearMipmapLinearFilter;
+                  mat[mapName].magFilter = THREE.LinearFilter;
+                  mat[mapName].needsUpdate = true;
+                }
+              });
             });
-          });
-        }
-      });
+          }
+        });
+      }
     },
     setupBackDrop: function () {
-      const backDrop = this.instance.proxy.$scene.children[0].children.find((item) => item.name === 'back_drop')
-      backDrop.receiveShadow = true;
-      backDrop.castShadow = true;
+      const backDrop = this.model.getObjectByName('back_drop');
+      if (backDrop) {
+        backDrop.receiveShadow = true;
+        backDrop.castShadow = true;
+      }
     },
     animate() {
-      requestAnimationFrame(this.animate);
+      this.animationId = requestAnimationFrame(this.animate);
 
-      if (this.camera) {
-        this.updateCameraAspect();
-        this.renderer.render(this.instance.proxy.$scene, this.camera);
+      if (this.camera && this.scene && this.renderer) {
+        this.renderer.render(this.scene, this.camera);
       }
 
       if (this.mixer) {
@@ -175,49 +230,110 @@ export default {
       }
 
       this.handleMouseMove()
-
     },
     handleMouseMove: function () {
       const {mouse, rotationTarget} = this
       let targetX = mouse.x * -.0001
       let targetY = mouse.y * -.0001
 
-      let scene = this.instance.proxy.$scene.children[0]
-
-      if (scene) {
-        rotationTarget.x += .3 * targetY - scene.rotation.x
-        rotationTarget.y += targetX - scene.rotation.y
-        scene.rotation.set(rotationTarget.x, rotationTarget.y, scene.rotation.z)
+      if (this.model) {
+        rotationTarget.x += .3 * targetY - this.model.rotation.x
+        rotationTarget.y += targetX - this.model.rotation.y
+        this.model.rotation.set(rotationTarget.x, rotationTarget.y, this.model.rotation.z)
       }
     },
     onWindowResize() {
+      this.windowHalfX = window.innerWidth / 2;
+      this.windowHalfY = window.innerHeight / 2;
       this.updateCameraAspect();
     },
     updateCameraAspect() {
+      if (!this.camera || !this.renderer) return;
+      
       this.displaySize.width = window.innerWidth;
       this.displaySize.height = window.innerHeight;
 
       const aspectRatio = this.displaySize.width / this.displaySize.height;
-      this.camera.aspect = (this.displaySize.width / this.displaySize.height);
+      this.camera.aspect = aspectRatio;
 
       this.camera.fov = aspectRatio < 1 ? this.defaultFov / aspectRatio : this.defaultFov
 
       this.camera.updateProjectionMatrix();
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
       this.renderer.setSize(this.displaySize.width, this.displaySize.height);
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     },
     onMouseMove(event) {
-      const {mouse, windowHalfX, windowHalfY} = this
-      mouse.x = (event.clientX - windowHalfX)
-      mouse.y = (event.clientY - windowHalfY)
+      this.mouse.x = (event.clientX - this.windowHalfX)
+      this.mouse.y = (event.clientY - this.windowHalfY)
+    },
+    onTouchMove(event) {
+      if (event.touches.length > 0) {
+        this.mouse.x = (event.touches[0].clientX - this.windowHalfX)
+        this.mouse.y = (event.touches[0].clientY - this.windowHalfY)
+      }
     },
     addEventListeners: function () {
-      window.addEventListener('resize', this.onWindowResize);
-      window.addEventListener('mousemove', this.onMouseMove);
+      window.addEventListener('resize', this.onWindowResize, {passive: true});
+      window.addEventListener('mousemove', this.onMouseMove, {passive: true});
+      window.addEventListener('touchmove', this.onTouchMove, {passive: true});
+      
+      const canvas = this.$refs.sceneContainer;
+      if (canvas) {
+        canvas.addEventListener('webglcontextlost', this.handleContextLost, false);
+        canvas.addEventListener('webglcontextrestored', this.handleContextRestored, false);
+      }
     },
     removeEventListeners: function () {
       window.removeEventListener('resize', this.onWindowResize);
       window.removeEventListener('mousemove', this.onMouseMove);
+      window.removeEventListener('touchmove', this.onTouchMove);
+
+      const canvas = this.$refs.sceneContainer;
+      if (canvas) {
+        canvas.removeEventListener('webglcontextlost', this.handleContextLost);
+        canvas.removeEventListener('webglcontextrestored', this.handleContextRestored);
+      }
+    },
+    disposeThree() {
+      if (this.animationId) {
+        cancelAnimationFrame(this.animationId);
+      }
+      
+      if (this.renderer) {
+        this.renderer.dispose();
+      }
+
+      if (this.scene) {
+        this.scene.traverse((object) => {
+          if (!object.isMesh) return;
+
+          object.geometry.dispose();
+
+          if (object.material.isMaterial) {
+            this.cleanMaterial(object.material);
+          } else {
+            // an array of materials
+            for (const material of object.material) this.cleanMaterial(material);
+          }
+        });
+      }
+      
+      this.scene = null;
+      this.camera = null;
+      this.renderer = null;
+      this.mixer = null;
+      this.model = null;
+    },
+    cleanMaterial(material) {
+      material.dispose();
+
+      // dispose textures
+      for (const key of Object.keys(material)) {
+        const value = material[key];
+        if (value && value instanceof THREE.Texture) {
+          value.dispose();
+        }
+      }
     }
   },
 }
@@ -229,6 +345,7 @@ export default {
   left: 0;
   outline: none;
   z-index: 0;
+  touch-action: none;
 }
 
 html,
