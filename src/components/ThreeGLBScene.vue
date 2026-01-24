@@ -21,20 +21,21 @@ export default {
       loadPercent: null
     }
   },
-  created() {
-    // Non-reactive Three.js objects
-    this.scene = null;
-    this.camera = null;
-    this.renderer = null;
-    this.mixer = null;
-    this.model = null;
-    this.clock = new THREE.Clock();
-    this.mouse = new THREE.Vector2();
-    this.rotationTarget = new THREE.Vector2();
-    this.windowHalfX = window.innerWidth / 2;
-    this.windowHalfY = window.innerHeight / 2;
-    this.animationId = null;
-  },
+    created() {
+      // Non-reactive Three.js objects
+      this.scene = null;
+      this.camera = null;
+      this.renderer = null;
+      this.mixer = null;
+      this.model = null;
+      this.clock = new THREE.Clock();
+      this.animationId = null;
+
+      // Safari detection
+      const ua = navigator.userAgent.toLowerCase();
+      this.isSafari = ua.indexOf('safari') !== -1 && ua.indexOf('chrome') === -1;
+      this.isIOS = /ipad|iphone|ipod/.test(ua) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+    },
   async mounted() {
     if (!this.isWebGLAvailable()) {
       console.error("WebGL is not supported on this device/browser.");
@@ -85,10 +86,11 @@ export default {
       try {
         this.renderer = new THREE.WebGLRenderer({
           canvas,
-          antialias: true,
+          antialias: !this.isIOS, // Disable antialias on iOS for performance
           alpha: true,
           powerPreference: "high-performance",
-          precision: "mediump"
+          precision: this.isIOS ? "lowp" : "mediump",
+          stencil: false
         });
         console.log("Renderer created successfully");
       } catch (e) {
@@ -98,7 +100,7 @@ export default {
       
       // iOS performance and compatibility settings
       this.renderer.shadowMap.enabled = true;
-      this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+      this.renderer.shadowMap.type = this.isSafari ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
       this.renderer.toneMapping = THREE.NoToneMapping;
       this.renderer.setClearColor(0x000000, 0); // Transparent background
       this.renderer.outputColorSpace = THREE.SRGBColorSpace;
@@ -175,14 +177,20 @@ export default {
       if (sceneLight) {
         sceneLight.intensity = 130
         sceneLight.castShadow = true
-        // Reduce shadow map size for mobile if necessary, but 2048 is usually okay. 1024 is safer for older iPhones.
-        const shadowRes = window.innerWidth < 768 ? 1024 : 2048;
+        // Reduce shadow map size for Safari/mobile. 1024 or 512 is safer for Safari performance.
+        let shadowRes = 2048;
+        if (this.isSafari || this.isIOS) {
+          shadowRes = window.innerWidth < 768 ? 512 : 1024;
+        } else if (window.innerWidth < 768) {
+          shadowRes = 1024;
+        }
+        
         sceneLight.shadow.mapSize.width = shadowRes;
         sceneLight.shadow.mapSize.height = shadowRes;
         sceneLight.shadow.camera.near = 0.5;
         sceneLight.shadow.camera.far = 500;
         sceneLight.shadow.bias = -0.0005;
-        sceneLight.shadow.radius = 4;
+        sceneLight.shadow.radius = this.isSafari ? 1 : 4; // Lower radius for BasicShadowMap on Safari
         sceneLight.shadow.intensity = .65
       }
     },
@@ -200,8 +208,10 @@ export default {
               // Apply to all texture maps
               ['map', 'normalMap', 'roughnessMap', 'metalnessMap', 'emissiveMap', 'aoMap'].forEach((mapName) => {
                 if (mat[mapName]) {
-                  mat[mapName].anisotropy = Math.min(maxAnisotropy, 4); // Cap anisotropy for mobile performance
-                  mat[mapName].minFilter = THREE.LinearMipmapLinearFilter;
+                  // Cap anisotropy for Safari/mobile performance
+                  const targetAnisotropy = (this.isSafari || this.isIOS) ? 2 : 4;
+                  mat[mapName].anisotropy = Math.min(maxAnisotropy, targetAnisotropy);
+                  mat[mapName].minFilter = this.isSafari ? THREE.LinearFilter : THREE.LinearMipmapLinearFilter;
                   mat[mapName].magFilter = THREE.LinearFilter;
                   mat[mapName].needsUpdate = true;
                 }
@@ -221,30 +231,39 @@ export default {
     animate() {
       this.animationId = requestAnimationFrame(this.animate);
 
+      const delta = this.clock.getDelta();
+      
+      // Basic frame skipping for Safari if performance is an issue
+      // In a real scenario, we'd measure FPS, but here we provide a hook
+      if (this.isSafari && this.frameCount === undefined) this.frameCount = 0;
+      if (this.isSafari) {
+        this.frameCount++;
+        if (this.frameCount % 2 === 0 && this.lowFPSMode) return; // Skip every other frame if in low FPS mode
+      }
+
       if (this.camera && this.scene && this.renderer) {
         this.renderer.render(this.scene, this.camera);
       }
 
-      if (this.mixer) {
-        this.mixer.update(this.clock.getDelta());
+      // Skip mixer updates when delta is below threshold
+      if (this.mixer && delta > 0.001) {
+        this.mixer.update(delta);
       }
-
-      this.handleMouseMove()
-    },
-    handleMouseMove: function () {
-      const {mouse, rotationTarget} = this
-      let targetX = mouse.x * -.0001
-      let targetY = mouse.y * -.0001
-
-      if (this.model) {
-        rotationTarget.x += .3 * targetY - this.model.rotation.x
-        rotationTarget.y += targetX - this.model.rotation.y
-        this.model.rotation.set(rotationTarget.x, rotationTarget.y, this.model.rotation.z)
+      
+      // Simple FPS monitoring
+      if (!this.lastFrameTime) this.lastFrameTime = performance.now();
+      const now = performance.now();
+      const frameTime = now - this.lastFrameTime;
+      this.lastFrameTime = now;
+      
+      if (frameTime > 33.3) { // Lower than 30fps
+        this.lowFPSCount = (this.lowFPSCount || 0) + 1;
+        if (this.lowFPSCount > 60) { // Persistent low FPS
+          this.lowFPSMode = true;
+        }
       }
     },
     onWindowResize() {
-      this.windowHalfX = window.innerWidth / 2;
-      this.windowHalfY = window.innerHeight / 2;
       this.updateCameraAspect();
     },
     updateCameraAspect() {
@@ -260,22 +279,13 @@ export default {
 
       this.camera.updateProjectionMatrix();
       this.renderer.setSize(this.displaySize.width, this.displaySize.height);
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
-    },
-    onMouseMove(event) {
-      this.mouse.x = (event.clientX - this.windowHalfX)
-      this.mouse.y = (event.clientY - this.windowHalfY)
-    },
-    onTouchMove(event) {
-      if (event.touches.length > 0) {
-        this.mouse.x = (event.touches[0].clientX - this.windowHalfX)
-        this.mouse.y = (event.touches[0].clientY - this.windowHalfY)
-      }
+
+      // Cap pixel ratio at 1.5x for Safari/iOS, 2x for others
+      const maxPixelRatio = (this.isSafari || this.isIOS) ? 1.5 : 2;
+      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
     },
     addEventListeners: function () {
       window.addEventListener('resize', this.onWindowResize, {passive: true});
-      window.addEventListener('mousemove', this.onMouseMove, {passive: true});
-      window.addEventListener('touchmove', this.onTouchMove, {passive: true});
       
       const canvas = this.$refs.sceneContainer;
       if (canvas) {
@@ -285,8 +295,6 @@ export default {
     },
     removeEventListeners: function () {
       window.removeEventListener('resize', this.onWindowResize);
-      window.removeEventListener('mousemove', this.onMouseMove);
-      window.removeEventListener('touchmove', this.onTouchMove);
 
       const canvas = this.$refs.sceneContainer;
       if (canvas) {
