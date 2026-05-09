@@ -22,13 +22,14 @@
       </div>
 
       <div v-else class="product-grid">
-        <div v-for="product in products" :key="product.id" class="product-card">
+        <div v-for="item in catalogItems" :key="`${item.productId}-${item.phoneModelValueId}`" class="product-card">
           <div class="product-image">
-            <img :src="product.images[0]?.src" :alt="product.title" draggable="false"/>
+            <img :src="item.image" :alt="item.title" draggable="false"/>
           </div>
           <div class="product-info">
-            <h3>{{ product.title }}</h3>
-            <p class="price">${{ getPrice(product) }}</p>
+            <h3>{{ item.title }}</h3>
+            <p class="product-subtitle">{{ item.productTitle }}</p>
+            <p class="price">${{ (item.price / 100).toFixed(2) }}</p>
             <div class="card-actions">
               <button @click="navigation.navigate('product-details', { id: product.id })" class="details-button">Details</button>
               <button @click="handleBuyNow(product)" class="buy-button">Buy Now</button>
@@ -72,30 +73,36 @@ const fetchProducts = async () => {
   }
 };
 
-const getPrice = (product) => {
-  if (!product.variants || product.variants.length === 0) return '0.00';
-  const prices = product.variants
-      .map(v => v.price)
-      .filter(p => p !== undefined && p !== null);
+const catalogItems = computed(() => {
+  const items = [];
+  for (const product of products.value) {
+    const sizeOption = product.options?.find(opt => opt.type === 'size');
+    if (!sizeOption) continue;
+    const sizeIndex = product.options.indexOf(sizeOption);
 
-  if (prices.length === 0) return '0.00';
+    for (const value of sizeOption.values) {
+      const variants = product.variants?.filter(
+        v => v.is_enabled && v.options[sizeIndex] === value.id
+      );
+      if (!variants?.length) continue;
 
-  const minPrice = Math.min(...prices);
-  return (minPrice / 100).toFixed(2);
-};
+      const defaultVariant = variants.find(v => v.is_default) ?? variants[0];
+      const image = product.images?.find(img => img.variant_ids?.includes(defaultVariant.id))?.src
+                 ?? product.images?.[0]?.src;
+      const price = Math.min(...variants.map(v => v.price));
 
-const handleBuyNow = (productData) => {
-  let name, price, image;
-
-  if (productData.selectedVariant) {
-    name = productData.title;
-    price = productData.price;
-    image = productData.image;
-  } else {
-    name = productData.title;
-    price = productData.variants[0]?.price || 2000;
-    image = productData.images[0]?.src;
+      items.push({
+        productId: product.id,
+        phoneModelValueId: value.id,
+        title: value.title,
+        productTitle: product.title,
+        image,
+        price,
+      });
+    }
   }
+  return items;
+});
 
   cart.addItem({ name, price, image });
   navigation.navigate('pay-list');
@@ -237,6 +244,13 @@ h2 {
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
+}
+
+.product-subtitle {
+  font-size: 0.85rem;
+  color: #888;
+  margin-bottom: 0.5rem;
+  margin-top: -0.5rem;
 }
 
 .price {
