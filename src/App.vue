@@ -8,12 +8,13 @@ import { onMounted, watch, nextTick } from 'vue'
 import Lenis from 'lenis'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
+import { setLenis } from '@/lenis'
 
 gsap.registerPlugin(ScrollTrigger)
 
 onMounted(() => {
   const lenis = new Lenis()
-  navigation.setLenis(lenis)
+  setLenis(lenis)
 
   lenis.on('scroll', ScrollTrigger.update)
 
