@@ -1,6 +1,6 @@
 <script>
 import {defineComponent, h} from "vue";
-import { navigation } from '@/navigation';
+import { useRouter } from 'vue-router';
 import { API_BASE_URL } from '@/config';
 import {NIcon, NMenu, NSplit} from "naive-ui";
 import {
@@ -21,15 +21,17 @@ function renderIcon(icon, classname, styling = defaultIconStyle) {
   return () => h(NIcon, null, {default: () => h(icon, {class: classname, style: styling})});
 }
 
-const handleCheckout = () => {
-  navigation.navigate('pay-list');
-};
-
 export default defineComponent({
   components: {NMenu, NSplit},
   setup() {
+    const router = useRouter();
+
+    const handleCheckout = () => {
+      router.push('/cart');
+    };
+
     const handleLogoClick = () => {
-      navigation.navigate('home');
+      router.push('/');
     };
 
     const mainMenuOptions = [

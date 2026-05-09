@@ -31,8 +31,8 @@
             <p class="product-subtitle">{{ item.productTitle }}</p>
             <p class="price">${{ (item.price / 100).toFixed(2) }}</p>
             <div class="card-actions">
-              <button @click="navigation.navigate('product-details', { id: product.id })" class="details-button">Details</button>
-              <button @click="handleBuyNow(product)" class="buy-button">Buy Now</button>
+              <button @click="router.push({ name: 'product-details', params: { id: item.productId }, query: { phone: item.phoneModelValueId } })" class="details-button">Details</button>
+              <button @click="handleBuyNow(item)" class="buy-button">Buy Now</button>
             </div>
           </div>
         </div>
@@ -42,10 +42,12 @@
 </template>
 
 <script setup>
-import {onMounted, ref, nextTick} from 'vue';
-import {API_BASE_URL} from '@/config';
-import { navigation } from '@/navigation';
+import { computed, onMounted, ref, nextTick } from 'vue';
+import { useRouter } from 'vue-router';
+import { API_BASE_URL } from '@/config';
 import { cart } from '@/cart';
+
+const router = useRouter();
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const products = ref([]);
@@ -104,8 +106,9 @@ const catalogItems = computed(() => {
   return items;
 });
 
-  cart.addItem({ name, price, image });
-  navigation.navigate('pay-list');
+const handleBuyNow = (item) => {
+  cart.addItem({ name: `${item.title} – ${item.productTitle}`, price: item.price, image: item.image });
+  router.push('/cart');
 };
 
 onMounted(fetchProducts);

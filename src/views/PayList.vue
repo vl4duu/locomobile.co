@@ -2,13 +2,13 @@
   <div class="pay-list-view">
     <div class="container">
       <header>
-        <button @click="navigation.navigate('home')" class="back-btn">BACK</button>
+        <button @click="router.push('/')" class="back-btn">BACK</button>
         <h1>PAY LIST</h1>
       </header>
 
       <div v-if="cart.items.length === 0" class="empty-cart">
         <p>YOUR LIST IS EMPTY</p>
-        <button @click="navigation.navigate('home')" class="shop-btn">BROWSE CATALOG</button>
+        <button @click="router.push('/')" class="shop-btn">BROWSE CATALOG</button>
       </div>
 
       <div v-else class="cart-content">
@@ -38,8 +38,10 @@
 
 <script setup>
 import { ref } from 'vue';
-import { navigation } from '@/navigation';
+import { useRouter } from 'vue-router';
 import { cart } from '@/cart';
+
+const router = useRouter();
 import { API_BASE_URL } from '@/config';
 
 const loading = ref(false);

@@ -2,7 +2,7 @@
   <div class="product-details-view">
     <div class="details-container">
       <div class="back-nav">
-        <button @click="navigation.navigate('home')" class="back-button">
+        <button @click="router.push('/')" class="back-button">
           <svg viewBox="0 0 24 24" width="24" height="24">
             <path fill="currentColor" d="M20,11V13H8L13.5,18.5L12.08,19.92L4.16,12L12.08,4.08L13.5,5.5L8,11H20Z" />
           </svg>
@@ -64,8 +64,10 @@
 
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue';
-import { navigation } from '@/navigation';
+import { useRouter } from 'vue-router';
 import { cart } from '@/cart';
+
+const router = useRouter();
 import { API_BASE_URL } from '@/config';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -134,13 +136,11 @@ const displayPrice = computed(() => {
 
 const handleBuy = () => {
   if (!product.value || !selectedVariant.value) return;
-
-  const name = product.value.title;
-  const price = selectedVariant.value.price;
-  const image = currentImage.value;
-
-  cart.addItem({ name, price, image });
-  navigation.navigate('pay-list');
+  const name = phoneModelTitle.value
+    ? `${phoneModelTitle.value} – ${product.value.title}`
+    : product.value.title;
+  cart.addItem({ name, price: selectedVariant.value.price, image: currentImage.value });
+  router.push('/cart');
 };
 </script>
 
