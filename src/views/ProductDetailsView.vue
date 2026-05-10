@@ -37,15 +37,14 @@
         </div>
 
         <div class="product-info">
-          <h2 class="product-title">{{ phoneModelTitle }}</h2>
-          <p class="product-subtitle">{{ product.title }}</p>
+          <h2 class="product-title">{{ product.title }}</h2>
           <div class="product-price">${{ displayPrice }}</div>
 
           <div class="product-description" v-html="product.body_html"></div>
 
-          <div v-if="displayOptions.length > 0" class="variants-selection">
-            <div v-for="option in displayOptions" :key="option.name" class="option-group">
-              <label>{{ option.name }}</label>
+          <div v-if="product.options?.length" class="variants-selection">
+            <div v-for="option in product.options" :key="option.name" class="option-group">
+              <label>{{ optionLabel(option) }}</label>
               <select v-model="selectedOptions[option.name]" class="variant-select">
                 <option v-for="value in option.values" :key="value.id" :value="value.id">
                   {{ value.title }}
@@ -72,7 +71,7 @@ const router = useRouter();
 import { API_BASE_URL } from '@/config';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
-const props = defineProps(['id', 'phoneModelValueId']);
+const props = defineProps(['id']);
 
 const product = ref(null);
 const loading = ref(true);
@@ -100,55 +99,26 @@ const fetchProduct = async () => {
 
 onMounted(fetchProduct);
 
-// Index of the "size" option (phone model) — hidden from UI, fixed by catalog selection
-const sizeOptionIndex = computed(() =>
-  product.value?.options?.findIndex(opt => opt.type === 'size') ?? -1
-);
+const optionLabel = (option) => option.type === 'size' ? 'Phone Model' : option.name;
 
-// Options shown in dropdowns (everything except the phone model size option)
-const displayOptions = computed(() =>
-  product.value?.options?.filter(opt => opt.type !== 'size') ?? []
-);
-
-// Resolved phone model title for display
-const phoneModelTitle = computed(() => {
-  if (!product.value || !props.phoneModelValueId) return '';
-  const sizeOpt = product.value.options?.[sizeOptionIndex.value];
-  return sizeOpt?.values.find(v => v.id === Number(props.phoneModelValueId))?.title ?? '';
-});
-
-// Variants narrowed to the selected phone model
-const phoneModelVariants = computed(() => {
-  if (!product.value?.variants) return [];
-  if (sizeOptionIndex.value < 0) return product.value.variants;
-  const phoneModelId = Number(props.phoneModelValueId);
-  return product.value.variants.filter(v => v.options[sizeOptionIndex.value] === phoneModelId);
-});
-
-// Initialise selectedOptions from the default variant for this phone model
 watch(product, (newProduct) => {
   if (!newProduct?.options || !newProduct?.variants) return;
-  const sizeIdx = newProduct.options.findIndex(opt => opt.type === 'size');
-  const phoneModelId = Number(props.phoneModelValueId);
-  const relevant = sizeIdx >= 0
-    ? newProduct.variants.filter(v => v.options[sizeIdx] === phoneModelId)
-    : newProduct.variants;
-  const defaultVariant = relevant.find(v => v.is_default) ?? relevant[0];
+  const enabled = newProduct.variants.filter(v => v.is_enabled);
+  const defaultVariant = enabled.find(v => v.is_default) ?? enabled[0] ?? newProduct.variants[0];
   if (!defaultVariant) return;
   const initialOptions = {};
   newProduct.options.forEach((opt, i) => {
-    if (opt.type !== 'size') initialOptions[opt.name] = defaultVariant.options[i];
+    initialOptions[opt.name] = defaultVariant.options[i];
   });
   selectedOptions.value = initialOptions;
 }, { immediate: true });
 
 const selectedVariant = computed(() => {
-  if (!product.value) return null;
-  return phoneModelVariants.value.find(variant =>
-    displayOptions.value.every(option => {
-      const idx = product.value.options.indexOf(option);
-      return variant.options[idx] === selectedOptions.value[option.name];
-    })
+  if (!product.value?.options) return null;
+  return product.value.variants?.find(variant =>
+    product.value.options.every((option, i) =>
+      variant.options[i] === selectedOptions.value[option.name]
+    )
   ) ?? null;
 });
 
@@ -173,10 +143,11 @@ const displayPrice = computed(() => {
 
 const handleBuy = () => {
   if (!product.value || !selectedVariant.value) return;
-  const name = phoneModelTitle.value
-    ? `${phoneModelTitle.value} – ${product.value.title}`
-    : product.value.title;
-  cart.addItem({ name, price: selectedVariant.value.price, image: currentImage.value });
+  cart.addItem({
+    name: product.value.title,
+    price: selectedVariant.value.price,
+    image: currentImage.value,
+  });
   router.push('/cart');
 };
 </script>

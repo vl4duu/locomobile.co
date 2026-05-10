@@ -12,10 +12,7 @@ const routes = [
     path: '/products/:id',
     name: 'product-details',
     component: ProductDetailsView,
-    props: route => ({
-      id: route.params.id,
-      phoneModelValueId: route.query.phone,
-    }),
+    props: true,
   },
   { path: '/cart', name: 'cart', component: PayList },
   { path: '/:pathMatch(.*)*', component: HomeView },
