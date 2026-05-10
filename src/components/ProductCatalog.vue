@@ -1,5 +1,6 @@
 <template>
   <div class="product-catalog">
+    <canvas ref="noiseCanvas" class="noise-canvas" aria-hidden="true"></canvas>
     <svg style="position: absolute; width: 0; height: 0;" aria-hidden="true" focusable="false">
       <filter id="remove-white">
         <feColorMatrix type="matrix" values="1 0 0 0 0
@@ -110,8 +111,75 @@ const handleBuyNow = (item) => {
   cart.addItem({ name: `${item.title} – ${item.productTitle}`, price: item.price, image: item.image });
   router.push('/cart');
 };
+const noiseCanvas = ref(null);
+let noiseRafId = null;
+let noiseStop = false;
+let noiseResizeObserver = null;
 
-onMounted(fetchProducts);
+function startNoise() {
+  const canvas = noiseCanvas.value;
+  if (!canvas) return;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return;
+
+  const MIN_SCALE = 4;
+  const MAX_PIXELS = 90000;
+  const FRAME_INTERVAL_MS = 1000 / 18;
+
+  let imageData = null;
+  let buf = null;
+
+  const resize = () => {
+    const rect = canvas.getBoundingClientRect();
+    let scale = MIN_SCALE;
+    let w = Math.max(1, Math.floor(rect.width / scale));
+    let h = Math.max(1, Math.floor(rect.height / scale));
+    while (w * h > MAX_PIXELS) {
+      scale += 1;
+      w = Math.max(1, Math.floor(rect.width / scale));
+      h = Math.max(1, Math.floor(rect.height / scale));
+    }
+    if (canvas.width !== w || canvas.height !== h) {
+      canvas.width = w;
+      canvas.height = h;
+      imageData = ctx.createImageData(w, h);
+      buf = imageData.data;
+    }
+  };
+
+  resize();
+  noiseResizeObserver = new ResizeObserver(resize);
+  noiseResizeObserver.observe(canvas);
+
+  let lastDraw = 0;
+  const tick = (now) => {
+    if (noiseStop) return;
+    if (buf && now - lastDraw >= FRAME_INTERVAL_MS) {
+      lastDraw = now;
+      for (let i = 0; i < buf.length; i += 4) {
+        const v = (Math.random() * 256) | 0;
+        buf[i] = v;
+        buf[i + 1] = v;
+        buf[i + 2] = v;
+        buf[i + 3] = 30;
+      }
+      ctx.putImageData(imageData, 0, 0);
+    }
+    noiseRafId = requestAnimationFrame(tick);
+  };
+  noiseRafId = requestAnimationFrame(tick);
+}
+
+onMounted(() => {
+  fetchProducts();
+  startNoise();
+});
+
+onBeforeUnmount(() => {
+  noiseStop = true;
+  if (noiseRafId) cancelAnimationFrame(noiseRafId);
+  if (noiseResizeObserver) noiseResizeObserver.disconnect();
+});
 </script>
 
 <style scoped>
@@ -128,12 +196,7 @@ onMounted(fetchProducts);
   padding-bottom: 10vh;
   color: white;
   isolation: isolate;
-  background: url("data:image/svg+xml,%3Csvg viewBox='0 0 250 250' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3CfeComponentTransfer%3E%3CfeFuncA type='linear' slope='0.45'/%3E%3C/feComponentTransfer%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E"),
-  rgba(0, 0, 0, 0.65);
-
-  background-blend-mode: overlay;
-  animation: static-move 0.2s infinite;
-  backdrop-filter: blur(20px);
+  background: rgba(0, 0, 0, 0.65);
 
   -webkit-mask-image: linear-gradient(
       to bottom,
@@ -175,16 +238,18 @@ onMounted(fetchProducts);
   );
 }
 
-@keyframes static-move {
-  0% {
-    background-position: 0 0;
-  }
-  100% {
-    background-position: 10px 10px;
-  }
+.noise-canvas {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+  z-index: 0;
 }
 
 .catalog-content {
+  position: relative;
+  z-index: 1;
   max-width: 1200px;
   width: 90%;
   text-align: center;
