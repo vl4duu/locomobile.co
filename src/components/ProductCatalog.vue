@@ -44,10 +44,12 @@
 </template>
 
 <script setup>
-import { computed, onMounted, ref, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
-import { API_BASE_URL } from '@/config';
-import { cart } from '@/cart';
+import {computed, nextTick, onBeforeUnmount, onMounted, ref} from 'vue';
+import {useRouter} from 'vue-router';
+import {ScrollTrigger} from 'gsap/ScrollTrigger';
+import {API_BASE_URL} from '@/config';
+import {cardSummary} from '@/domain/variant';
+import {isClientProcessable} from '@/utils/imageProcessing';
 
 const router = useRouter();
 
@@ -66,13 +68,12 @@ const fetchProducts = async () => {
     const data = await response.json();
     products.value = data.data || [];
   } catch (err) {
-    console.error('Error fetching products:', err);
     error.value = err.message;
   } finally {
-    loading.value = false;
-    nextTick(() => {
+    await nextTick(() => {
       ScrollTrigger.refresh();
     });
+    loading.value = false;
   }
 };
 
