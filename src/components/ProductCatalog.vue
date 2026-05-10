@@ -23,18 +23,19 @@
       </div>
 
       <div v-else class="product-grid">
-        <div v-for="item in catalogItems" :key="`${item.productId}-${item.phoneModelValueId}`" class="product-card">
-          <div class="product-image">
+        <div v-for="item in catalogItems" :key="item.productId" class="product-card">
+          <div
+              class="product-image"
+              role="button"
+              tabindex="0"
+              @click="router.push({ name: 'product-details', params: { id: item.productId } })"
+              @keydown.enter="router.push({ name: 'product-details', params: { id: item.productId } })"
+          >
             <img :src="item.image" :alt="item.title" draggable="false"/>
           </div>
           <div class="product-info">
             <h3>{{ item.title }}</h3>
-            <p class="product-subtitle">{{ item.productTitle }}</p>
             <p class="price">${{ (item.price / 100).toFixed(2) }}</p>
-            <div class="card-actions">
-              <button @click="router.push({ name: 'product-details', params: { id: item.productId }, query: { phone: item.phoneModelValueId } })" class="details-button">Details</button>
-              <button @click="handleBuyNow(item)" class="buy-button">Buy Now</button>
-            </div>
           </div>
         </div>
       </div>
@@ -49,7 +50,6 @@ import { API_BASE_URL } from '@/config';
 import { cart } from '@/cart';
 
 const router = useRouter();
-import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
 const products = ref([]);
 const loading = ref(true);
@@ -79,38 +79,18 @@ const fetchProducts = async () => {
 const catalogItems = computed(() => {
   const items = [];
   for (const product of products.value) {
-    const sizeOption = product.options?.find(opt => opt.type === 'size');
-    if (!sizeOption) continue;
-    const sizeIndex = product.options.indexOf(sizeOption);
-
-    for (const value of sizeOption.values) {
-      const variants = product.variants?.filter(
-        v => v.is_enabled && v.options[sizeIndex] === value.id
-      );
-      if (!variants?.length) continue;
-
-      const defaultVariant = variants.find(v => v.is_default) ?? variants[0];
-      const image = product.images?.find(img => img.variant_ids?.includes(defaultVariant.id))?.src
-                 ?? product.images?.[0]?.src;
-      const price = Math.min(...variants.map(v => v.price));
-
-      items.push({
-        productId: product.id,
-        phoneModelValueId: value.id,
-        title: value.title,
-        productTitle: product.title,
-        image,
-        price,
-      });
-    }
+    const summary = cardSummary(product, isClientProcessable);
+    if (!summary) continue;
+    items.push({
+      productId: product.id,
+      title: product.title,
+      image: summary.image,
+      price: summary.fromPriceCents,
+    });
   }
   return items;
 });
 
-const handleBuyNow = (item) => {
-  cart.addItem({ name: `${item.title} – ${item.productTitle}`, price: item.price, image: item.image });
-  router.push('/cart');
-};
 const noiseCanvas = ref(null);
 let noiseRafId = null;
 let noiseStop = false;
@@ -280,18 +260,29 @@ h2 {
 .product-image {
   width: 100%;
   aspect-ratio: 1;
-  overflow: hidden;
+  overflow: visible;
   background: transparent;
+  cursor: pointer;
 }
 
 .product-image img {
   width: 100%;
   height: 100%;
   object-fit: contain;
-  transition: transform 0.5s ease;
+  transition: transform 0s;
   filter: url(#remove-white) brightness(1.05);
   user-select: none;
   -webkit-user-drag: none;
+  transform-origin: center;
+}
+
+.product-image:hover img,
+.product-image:focus-visible img {
+  transform: rotate(20deg);
+}
+
+.product-image:focus {
+  outline: none;
 }
 
 
