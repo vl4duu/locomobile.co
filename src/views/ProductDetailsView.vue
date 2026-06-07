@@ -38,14 +38,45 @@
 
         <div class="product-info">
           <h2 class="product-title">{{ product.title }}</h2>
-          <div class="product-price">${{ displayPrice }}</div>
+          <p v-if="!noPhonePicked && selectedPhoneTitle" class="product-subtitle">{{ selectedPhoneTitle }}</p>
+
+          <div class="product-price">
+            <span v-if="noPhonePicked" class="price-hint">Select a phone</span>
+            <span v-else-if="phoneOutOfStock || comboOutOfStock" class="price-oos">Out of stock</span>
+            <span v-else>${{ displayPrice }}</span>
+          </div>
 
           <div class="product-description" v-html="product.body_html"></div>
 
           <div v-if="product.options?.length" class="variants-selection">
             <div v-for="option in product.options" :key="option.name" class="option-group">
               <label>{{ optionLabel(option) }}</label>
-              <select v-model="selectedOptions[option.name]" class="variant-select">
+
+              <!-- Phone selector: grouped by manufacturer, dead models greyed out -->
+              <select
+                v-if="option === phoneOpt"
+                v-model.number="selectedOptions[option.name]"
+                class="variant-select"
+              >
+                <option :value="undefined" disabled>Select a phone</option>
+                <optgroup
+                  v-for="group in phoneGroups"
+                  :key="group.manufacturer"
+                  :label="group.manufacturer"
+                >
+                  <option
+                    v-for="value in group.values"
+                    :key="value.id"
+                    :value="value.id"
+                    :disabled="!enabledPhoneIds.has(value.id)"
+                  >
+                    {{ value.title }}{{ enabledPhoneIds.has(value.id) ? '' : ' — out of stock' }}
+                  </option>
+                </optgroup>
+              </select>
+
+              <!-- Other options (surface, etc.) -->
+              <select v-else v-model.number="selectedOptions[option.name]" class="variant-select">
                 <option v-for="value in option.values" :key="value.id" :value="value.id">
                   {{ value.title }}
                 </option>
@@ -54,7 +85,9 @@
           </div>
 
           <div class="actions">
-            <button class="buy-now-button" @click="handleBuy">Buy Now</button>
+            <button class="buy-now-button" :disabled="buyDisabled" @click="handleBuy">
+              {{ buyLabel }}
+            </button>
           </div>
         </div>
       </div>
@@ -64,10 +97,18 @@
 
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { cart } from '@/cart';
+import {
+  phoneOption,
+  groupPhoneValues,
+  enabledPhoneValueIds,
+  resolveVariant,
+  defaultEnabledVariantForPhone,
+} from '@/domain/variant';
 
 const router = useRouter();
+const route = useRoute();
 import { API_BASE_URL } from '@/config';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -101,26 +142,98 @@ onMounted(fetchProduct);
 
 const optionLabel = (option) => option.type === 'size' ? 'Phone Model' : option.name;
 
+// --- Phone option plumbing -------------------------------------------------
+
+const phoneOpt = computed(() => phoneOption(product.value));
+const phoneGroups = computed(() => groupPhoneValues(phoneOpt.value?.values ?? []));
+const enabledPhoneIds = computed(() => enabledPhoneValueIds(product.value));
+
+// Valid phone value-ids for THIS product (all values, enabled or not).
+const allPhoneIds = computed(
+  () => new Set((phoneOpt.value?.values ?? []).map((v) => v.id)),
+);
+
+// The currently selected phone value-id (the value of the size option), or undefined.
+const selectedPhoneId = computed(() =>
+  phoneOpt.value ? selectedOptions.value[phoneOpt.value.name] : undefined,
+);
+
+const selectedPhoneTitle = computed(() => {
+  const id = selectedPhoneId.value;
+  return phoneOpt.value?.values.find((v) => v.id === id)?.title ?? null;
+});
+
+// Read a valid phone id from the URL, or null if absent/foreign to this product.
+const phoneFromQuery = () => {
+  const raw = Number(route.query.phone);
+  return Number.isFinite(raw) && allPhoneIds.value.has(raw) ? raw : null;
+};
+
+// Seed selection once the product arrives (and re-seed if the route id changes).
 watch(product, (newProduct) => {
   if (!newProduct?.options || !newProduct?.variants) return;
-  const enabled = newProduct.variants.filter(v => v.is_enabled);
-  const defaultVariant = enabled.find(v => v.is_default) ?? enabled[0] ?? newProduct.variants[0];
-  if (!defaultVariant) return;
-  const initialOptions = {};
-  newProduct.options.forEach((opt, i) => {
-    initialOptions[opt.name] = defaultVariant.options[i];
-  });
-  selectedOptions.value = initialOptions;
+
+  const queryPhone = phoneFromQuery();
+  const base = {};
+
+  if (queryPhone != null) {
+    // Phone picked via URL: default the rest from an enabled variant for it.
+    const variant =
+      defaultEnabledVariantForPhone(newProduct, queryPhone) ??
+      newProduct.variants.find((v) => v.is_enabled) ??
+      newProduct.variants[0];
+    newProduct.options.forEach((opt, i) => {
+      base[opt.name] = opt === phoneOpt.value ? queryPhone : variant?.options[i];
+    });
+  } else {
+    // No phone picked: leave the phone empty, default the other axes from the
+    // product default so a full combo completes the moment a phone is chosen.
+    const fallback =
+      newProduct.variants.find((v) => v.is_enabled && v.is_default) ??
+      newProduct.variants.find((v) => v.is_enabled) ??
+      newProduct.variants[0];
+    newProduct.options.forEach((opt, i) => {
+      base[opt.name] = opt === phoneOpt.value ? undefined : fallback?.options[i];
+    });
+  }
+
+  selectedOptions.value = base;
 }, { immediate: true });
 
-const selectedVariant = computed(() => {
-  if (!product.value?.options) return null;
-  return product.value.variants?.find(variant =>
-    product.value.options.every((option, i) =>
-      variant.options[i] === selectedOptions.value[option.name]
-    )
-  ) ?? null;
+// Keep the URL in sync when the phone changes (and react to back/forward).
+watch(selectedPhoneId, (id) => {
+  const current = route.query.phone != null ? Number(route.query.phone) : null;
+  if (id != null && id !== current) {
+    router.replace({ query: { ...route.query, phone: id } });
+  }
 });
+
+watch(
+  () => route.query.phone,
+  () => {
+    const queryPhone = phoneFromQuery();
+    if (queryPhone != null && queryPhone !== selectedPhoneId.value && phoneOpt.value) {
+      selectedOptions.value = { ...selectedOptions.value, [phoneOpt.value.name]: queryPhone };
+    }
+  },
+);
+
+// --- Stock flags -----------------------------------------------------------
+
+const noPhonePicked = computed(() => selectedPhoneId.value == null);
+
+const phoneOutOfStock = computed(
+  () => !noPhonePicked.value && !enabledPhoneIds.value.has(selectedPhoneId.value),
+);
+
+const selectedVariant = computed(() => resolveVariant(product.value, selectedOptions.value));
+
+const comboOutOfStock = computed(
+  () =>
+    !noPhonePicked.value &&
+    !phoneOutOfStock.value &&
+    (!selectedVariant.value || !selectedVariant.value.is_enabled),
+);
 
 // Reset image index when variant changes
 watch(selectedVariant, () => { currentImageIndex.value = 0; });
@@ -141,8 +254,19 @@ const displayPrice = computed(() => {
   return (price / 100).toFixed(2);
 });
 
+const buyDisabled = computed(
+  () => noPhonePicked.value || phoneOutOfStock.value || comboOutOfStock.value,
+);
+
+const buyLabel = computed(() => {
+  if (noPhonePicked.value) return 'Select a phone';
+  if (phoneOutOfStock.value || comboOutOfStock.value) return 'Out of stock';
+  return 'Buy Now';
+});
+
 const handleBuy = () => {
-  if (!product.value || !selectedVariant.value) return;
+  // Cart item shape is rewritten in Task 4; keep the current shape for now.
+  if (buyDisabled.value || !product.value || !selectedVariant.value) return;
   cart.addItem({
     name: product.value.title,
     price: selectedVariant.value.price,
@@ -254,6 +378,15 @@ const handleBuy = () => {
   margin-bottom: 2rem;
 }
 
+.price-hint {
+  color: #888;
+  font-weight: 600;
+}
+
+.price-oos {
+  color: #ff4444;
+}
+
 .product-description {
   font-size: 1.1rem;
   line-height: 1.6;
@@ -301,9 +434,15 @@ const handleBuy = () => {
   transition: all 0.2s ease;
 }
 
-.buy-now-button:hover {
+.buy-now-button:hover:not(:disabled) {
   background: #eee;
   transform: translateY(-2px);
+}
+
+.buy-now-button:disabled {
+  background: #444;
+  color: #999;
+  cursor: not-allowed;
 }
 
 .status-message {

@@ -23,14 +23,16 @@
       </div>
 
       <div v-else class="product-grid">
-        <div v-for="item in catalogItems" :key="item.productId" class="product-card">
-          <div
-              class="product-image"
-              role="button"
-              tabindex="0"
-              @click="router.push({ name: 'product-details', params: { id: item.productId } })"
-              @keydown.enter="router.push({ name: 'product-details', params: { id: item.productId } })"
-          >
+        <div
+            v-for="item in catalogItems"
+            :key="item.productId"
+            class="product-card"
+            role="button"
+            tabindex="0"
+            @click="router.push({ name: 'product-details', params: { id: item.productId } })"
+            @keydown.enter="router.push({ name: 'product-details', params: { id: item.productId } })"
+        >
+          <div class="product-image">
             <img :src="item.image" :alt="item.title" draggable="false"/>
           </div>
           <div class="product-info">
@@ -258,12 +260,19 @@ h2 {
 }
 
 
+.product-card {
+  cursor: pointer;
+}
+
+.product-card:focus {
+  outline: none;
+}
+
 .product-image {
   width: 100%;
   aspect-ratio: 1;
   overflow: visible;
   background: transparent;
-  cursor: pointer;
 }
 
 .product-image img {
@@ -277,13 +286,9 @@ h2 {
   transform-origin: center;
 }
 
-.product-image:hover img,
-.product-image:focus-visible img {
+.product-card:hover .product-image img,
+.product-card:focus-visible .product-image img {
   transform: rotate(20deg);
-}
-
-.product-image:focus {
-  outline: none;
 }
 
 

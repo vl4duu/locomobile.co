@@ -72,3 +72,70 @@ export function cardSummary(product, predicate = () => true) {
 
   return { image, fromPriceCents, variants };
 }
+
+// --- Product details: phone selector + stock resolution -------------------
+//
+// The phone selector is the option with `type === 'size'` (Printify models the
+// 40+ phone models as the "size" axis). Everything else (surface, etc.) stays a
+// plain select. Value ids are Numbers; callers coercing from the URL must Number()
+// the `?phone=` query first.
+
+export function phoneOption(product) {
+  return product?.options?.find((o) => o.type === 'size') ?? null;
+}
+
+const MANUFACTURERS = ['iPhone', 'Samsung', 'Google Pixel', 'Other'];
+
+export function manufacturerOf(title = '') {
+  if (title.startsWith('iPhone')) return 'iPhone';
+  if (title.startsWith('Samsung')) return 'Samsung';
+  if (title.startsWith('Google Pixel') || title.startsWith('Pixel')) return 'Google Pixel';
+  return 'Other';
+}
+
+// Group phone option values by manufacturer, in MANUFACTURERS order, preserving
+// Printify's original order within each group. Empty groups are dropped.
+export function groupPhoneValues(values = []) {
+  const buckets = new Map(MANUFACTURERS.map((m) => [m, []]));
+  for (const value of values) {
+    buckets.get(manufacturerOf(value.title)).push(value);
+  }
+  return MANUFACTURERS
+    .map((manufacturer) => ({ manufacturer, values: buckets.get(manufacturer) }))
+    .filter((group) => group.values.length > 0);
+}
+
+// Size-value ids that appear in at least one enabled variant. Used to grey out
+// phone models with zero enabled variants for this product.
+export function enabledPhoneValueIds(product) {
+  const opt = phoneOption(product);
+  if (!opt) return new Set();
+  const sizeIdx = product.options.indexOf(opt);
+  const ids = new Set();
+  for (const v of enabledVariants(product)) {
+    ids.add(v.options[sizeIdx]);
+  }
+  return ids;
+}
+
+// The variant whose options match `selectedOptions` (keyed by option NAME → value
+// id) exactly. Returns it regardless of is_enabled — the caller inspects
+// `.is_enabled` to detect a dead combo. Null if no variant matches.
+export function resolveVariant(product, selectedOptions) {
+  if (!product?.options || !product?.variants) return null;
+  return (
+    product.variants.find((variant) =>
+      product.options.every((opt, i) => variant.options[i] === selectedOptions[opt.name]),
+    ) ?? null
+  );
+}
+
+// Among enabled variants for the given phone (size) value, the is_default one,
+// else the first, else null.
+export function defaultEnabledVariantForPhone(product, phoneValueId) {
+  const opt = phoneOption(product);
+  if (!opt) return null;
+  const sizeIdx = product.options.indexOf(opt);
+  const forPhone = enabledVariants(product).filter((v) => v.options[sizeIdx] === phoneValueId);
+  return forPhone.find((v) => v.is_default) ?? forPhone[0] ?? null;
+}
