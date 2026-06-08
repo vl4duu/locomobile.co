@@ -18,9 +18,9 @@ has actually landed so far; the rest is unbuilt despite the DB being connected.
 |----|------------------------------------------------------------|-------------------------------------------------------------------------------------------------------------------------------------------------------------------|
 | 1  | Routing migration (vue-router + Netlify `_redirects`)      | done — `_redirects` SPA fallback fixed (`/*`); shared deep links now resolve                                                                                      |
 | 2  | Catalog rewrite (one card per product, matte hero)         | done — whole card clickable/focusable, hover rotates image, price kept by decision                                                                                |
-| 3  | Details rewrite (optional phone, optgroup, OOS states)     | implemented — grouped phone selector, is_enabled greyout, 3 OOS states, `?phone=` writeback; pure helpers in `domain/variant.js`. Build green; browser smoke-test pending                  |
-| 4  | Cart shape + persistence + revalidation                    | not started                                                                                                                                                       |
-| 5  | Backend contract (server-priced Stripe, webhook sig, CORS) | partial — CORS locked; Postgres+Flask-Migrate landed; **still trusts client price**, webhook sig header bug, no variant-revalidation endpoint, qty hardcoded to 1 |
+| 3  | Details rewrite (optional phone, optgroup, OOS states)     | implemented + generalized for any product (hoodie sizes etc.): product-driven labels, manufacturer grouping only when values look like phones, per-option stock greyout, image follows best enabled variant. Build green; browser smoke-test pending |
+| 4  | Cart shape + persistence + revalidation                    | implemented — `{productId,variantId,quantity}` shape, qty controls, localStorage + cross-tab sync, hydrate revalidation; `PayList` shows unavailable/price-change notices. Browser smoke-test pending |
+| 5  | Backend contract (server-priced Stripe, webhook sig, CORS) | partial — CORS locked; Postgres+Flask-Migrate landed; variant-revalidation endpoint added (`GET /…/variants/:id`, 60s cache); **still trusts client price**, webhook sig header bug, qty hardcoded to 1 |
 | 6  | Post-checkout (webhook → Printify, retry/refund)           | not started — architecture changed: **inline-in-webhook, not BullMQ** (see PROFIT_TRACKING_DESIGN). `create_printify_order()` exists but is never called          |
 | 7  | SEO (vite-ssg, @unhead, JSON-LD, sitemap)                  | not started                                                                                                                                                       |
 | 8  | Observability (Sentry, GA4 Consent Mode v2, banner)        | not started                                                                                                                                                       |
@@ -95,6 +95,49 @@ Price line kept by decision (2026-06-07) — shows the "from" price; do not remo
 ## Task 3 — Details rewrite (`src/views/ProductDetailsView.vue`)
 
 **Depends on:** 1. **Blocks:** 7 (details meta), 10 (e2e).
+
+> **Generalized beyond phone cases (2026-06-08).** The page must work for any
+> product type (a hoodie has sizes, not models). Implemented as product-agnostic:
+> - **Labels** come from each `option.name` (no hard-coded "Phone Model").
+> - The **primary axis** = the `type === 'size'` option; it starts unpicked and
+>   gates price/Buy. Products with no size axis default everything and Buy is live.
+> - **Manufacturer-grouped optgroups** are used only when the size values look
+>   like phones (`isPhoneModelOption`: ≥2 real manufacturer groups); otherwise a
+>   plain select. "Select a {phone|size|…}" copy is derived from the option.
+> - **Per-option stock greyout:** every option disables values with no enabled
+>   variant given the other current selections (`availableValueIds`); the primary
+>   axis uses the global in-stock set so secondary picks never grey it out.
+> - **Image sync fix:** the hero/thumbnails follow `imageVariant` — the best
+>   *enabled* variant matching the selection, relaxing to the primary axis if the
+>   exact combo is dead (image-less). Previously a disabled combo fell back to
+>   dumping all images / an unrelated mockup.
+> - `?phone=` query key retained for shared-link stability; it now holds the
+>   primary value id regardless of product type.
+> New pure helpers in `domain/variant.js`: `primaryOption`, `isPhoneModelOption`,
+> `availableValueIds`, `imageVariant`.
+>
+> **Fixes (2026-06-08) from live-data testing:**
+> - **Variant option order is NOT positional.** A variant's `options` array can be
+>   in a different order than `product.options` (the live hoodie lists options
+>   `[color, size]` but its variants list `[sizeId, colorId]`). All matching now
+>   keys off value-id **membership** (`variant.options.includes(id)`), never the
+>   `product.options` index. This was making the hoodie read as fully out of stock.
+>   Also fixed the same latent positional bug in `isClientProcessable`
+>   (`utils/imageProcessing.js`). New helpers: `variantValueFor`, `optionsFromVariant`.
+> - **Gift packaging hidden.** Options matching `/gift|packag/i` are not rendered and
+>   are force-defaulted to the "Without …" value (we don't sell the add-on at
+>   checkout). Helpers: `isHiddenOption`, `defaultHiddenValueId`; component renders
+>   `visibleOptions`.
+> - `router.replace` on primary change is `.catch()`-guarded against redundant-nav
+>   rejections. (NB: the console error `No Listener: tabs:outgoing.message.ready`
+>   is a browser-extension message, not app code.)
+> - **Image follows surface change.** Printify attaches mockups to only some
+>   variants (e.g. iPhone 15 has both glossy+matte mockups; iPhone 17 glossy has
+>   none). `imageVariant` now prefers a matching variant that actually has an
+>   image, relaxing to the same primary value if the exact combo is image-less —
+>   so switching surface updates the hero when a distinct mockup exists, and
+>   otherwise keeps the correct phone instead of dumping all images. Where Printify
+>   has no surface-specific mockup, the image legitimately can't differ.
 
 - `phoneModelValueId` becomes optional (no phone picked at catalog time). Read it from the `?phone=` query.
 - Phone selector: `<select>` with `<optgroup>` per manufacturer (iPhone / Samsung / Google Pixel / Other). Infer by
@@ -182,7 +225,7 @@ Frontend → Render backend → Stripe Checkout → Printify.
   the client. Must refetch variant from Printify and price authoritatively. **The fraud window is still open.**
 - ❌ **Webhook signature header bug** — reads `request.headers.get('STRIPE_SIGNATURE')`; Stripe sends `Stripe-Signature`
   and Werkzeug treats `_` ≠ `-`, so this is always `None` → every webhook 400s. Fix to `Stripe-Signature`.
-- ❌ No `GET /api/products/:productId/variants/:variantId` revalidation endpoint (Task 4 precondition).
+- ✅ `GET /api/products/:productId/variants/:variantId` revalidation endpoint added (returns `{enabled, price}`, 60s TTL cache shared with `get_product`).
 - ❌ Quantity hardcoded to `1` in checkout line items.
 - ❌ Items metadata (`{productId, variantId, quantity}`) not stashed on the session → webhook can't build a Printify
   order (blocks Task 6 / profit step 5).
@@ -320,7 +363,7 @@ Frontend → Render backend → Stripe Checkout → Printify.
 | Accessibility (WCAG 2.1 AA)                                                     | Skipped; EAA/ADA risk acknowledged                                             |
 | Disabled-combo dropdown UX                                                      | Allow + red "Out of stock"                                                     |
 | Catalog products with no enabled matte variant                                  | Skip card; revisit during catalog polish                                       |
-| Cart revalidation strategy (per-item vs batch endpoint)                         | Decide during task 4 impl                                                      |
+| Cart revalidation strategy (per-item vs batch endpoint)                         | Decided: per-item `GET /…/variants/:id`; 60s server cache absorbs the fan-out  |
 | Unit tests for variant resolution                                               | Skipped at launch                                                              |
 | Post-checkout queue (BullMQ + Redis)                                            | **Dropped.** Inline-in-webhook + Stripe retry (PROFIT_TRACKING_DESIGN) instead |
 | Automated refund-on-fulfillment-failure                                         | Deferred. Manual admin retry + manual refund at launch                         |
