@@ -38,29 +38,29 @@
 
         <div class="product-info">
           <h2 class="product-title">{{ product.title }}</h2>
-          <p v-if="!noPhonePicked && selectedPhoneTitle" class="product-subtitle">{{ selectedPhoneTitle }}</p>
+          <p v-if="!noPrimaryPicked && selectedPrimaryTitle" class="product-subtitle">{{ selectedPrimaryTitle }}</p>
 
           <div class="product-price">
-            <span v-if="noPhonePicked" class="price-hint">Select a phone</span>
-            <span v-else-if="phoneOutOfStock || comboOutOfStock" class="price-oos">Out of stock</span>
+            <span v-if="noPrimaryPicked" class="price-hint">Select a {{ primaryNoun }}</span>
+            <span v-else-if="primaryOutOfStock || comboOutOfStock" class="price-oos">Out of stock</span>
             <span v-else>${{ displayPrice }}</span>
           </div>
 
           <div class="product-description" v-html="product.body_html"></div>
 
-          <div v-if="product.options?.length" class="variants-selection">
-            <div v-for="option in product.options" :key="option.name" class="option-group">
+          <div v-if="visibleOptions.length" class="variants-selection">
+            <div v-for="option in visibleOptions" :key="option.name" class="option-group">
               <label>{{ optionLabel(option) }}</label>
 
-              <!-- Phone selector: grouped by manufacturer, dead models greyed out -->
+              <!-- Primary axis rendered as a manufacturer-grouped picker (phones) -->
               <select
-                v-if="option === phoneOpt"
+                v-if="option === primaryOpt && isGroupedPrimary"
                 v-model.number="selectedOptions[option.name]"
                 class="variant-select"
               >
-                <option :value="undefined" disabled>Select a phone</option>
+                <option :value="undefined" disabled>Select a {{ primaryNoun }}</option>
                 <optgroup
-                  v-for="group in phoneGroups"
+                  v-for="group in primaryGroups"
                   :key="group.manufacturer"
                   :label="group.manufacturer"
                 >
@@ -68,17 +68,25 @@
                     v-for="value in group.values"
                     :key="value.id"
                     :value="value.id"
-                    :disabled="!enabledPhoneIds.has(value.id)"
+                    :disabled="!isValueAvailable(option, value.id)"
                   >
-                    {{ value.title }}{{ enabledPhoneIds.has(value.id) ? '' : ' — out of stock' }}
+                    {{ value.title }}{{ isValueAvailable(option, value.id) ? '' : ' — out of stock' }}
                   </option>
                 </optgroup>
               </select>
 
-              <!-- Other options (surface, etc.) -->
+              <!-- Any other option (plain select, dead values greyed for the current combo) -->
               <select v-else v-model.number="selectedOptions[option.name]" class="variant-select">
-                <option v-for="value in option.values" :key="value.id" :value="value.id">
-                  {{ value.title }}
+                <option v-if="option === primaryOpt" :value="undefined" disabled>
+                  Select a {{ primaryNoun }}
+                </option>
+                <option
+                  v-for="value in option.values"
+                  :key="value.id"
+                  :value="value.id"
+                  :disabled="!isValueAvailable(option, value.id)"
+                >
+                  {{ value.title }}{{ isValueAvailable(option, value.id) ? '' : ' — out of stock' }}
                 </option>
               </select>
             </div>
@@ -100,11 +108,16 @@ import { computed, ref, onMounted, watch, nextTick } from 'vue';
 import { useRouter, useRoute } from 'vue-router';
 import { cart } from '@/cart';
 import {
-  phoneOption,
+  primaryOption,
+  isPhoneModelOption,
   groupPhoneValues,
-  enabledPhoneValueIds,
+  availableValueIds,
   resolveVariant,
+  imageVariant,
   defaultEnabledVariantForPhone,
+  optionsFromVariant,
+  isHiddenOption,
+  defaultHiddenValueId,
 } from '@/domain/variant';
 
 const router = useRouter();
@@ -140,111 +153,152 @@ const fetchProduct = async () => {
 
 onMounted(fetchProduct);
 
-const optionLabel = (option) => option.type === 'size' ? 'Phone Model' : option.name;
+// Labels come from the product's own option names (a hoodie says "Sizes", a
+// phone case says "Phone case sizes") — never hard-coded.
+const optionLabel = (option) => option.name;
 
-// --- Phone option plumbing -------------------------------------------------
+// --- Primary axis (product-agnostic) ---------------------------------------
+// The size-type option is the "primary" axis: it starts unpicked and gates the
+// price/Buy button. For phone cases that's the phone model; for a hoodie, size.
 
-const phoneOpt = computed(() => phoneOption(product.value));
-const phoneGroups = computed(() => groupPhoneValues(phoneOpt.value?.values ?? []));
-const enabledPhoneIds = computed(() => enabledPhoneValueIds(product.value));
+const primaryOpt = computed(() => primaryOption(product.value));
+const isGroupedPrimary = computed(() => isPhoneModelOption(primaryOpt.value));
+const primaryGroups = computed(() => groupPhoneValues(primaryOpt.value?.values ?? []));
 
-// Valid phone value-ids for THIS product (all values, enabled or not).
-const allPhoneIds = computed(
-  () => new Set((phoneOpt.value?.values ?? []).map((v) => v.id)),
+// Options shown to the user. Hidden options (gift packaging) are silently
+// defaulted in the seed and never rendered.
+const visibleOptions = computed(
+  () => product.value?.options?.filter((o) => !isHiddenOption(o)) ?? [],
 );
 
-// The currently selected phone value-id (the value of the size option), or undefined.
-const selectedPhoneId = computed(() =>
-  phoneOpt.value ? selectedOptions.value[phoneOpt.value.name] : undefined,
+// All valid value-ids for the primary axis (enabled or not) on THIS product.
+const allPrimaryIds = computed(
+  () => new Set((primaryOpt.value?.values ?? []).map((v) => v.id)),
 );
 
-const selectedPhoneTitle = computed(() => {
-  const id = selectedPhoneId.value;
-  return phoneOpt.value?.values.find((v) => v.id === id)?.title ?? null;
+// Per-option set of currently selectable value-ids. The primary axis uses the
+// global in-stock set ({}); secondary axes narrow by the current selection so
+// they grey out combos that are dead for the chosen primary value.
+const optionAvailability = computed(() => {
+  const map = {};
+  for (const opt of product.value?.options ?? []) {
+    map[opt.name] =
+      opt === primaryOpt.value
+        ? availableValueIds(product.value, opt.name, {})
+        : availableValueIds(product.value, opt.name, selectedOptions.value);
+  }
+  return map;
+});
+const isValueAvailable = (option, valueId) =>
+  optionAvailability.value[option.name]?.has(valueId) ?? false;
+
+const selectedPrimaryId = computed(() =>
+  primaryOpt.value ? selectedOptions.value[primaryOpt.value.name] : undefined,
+);
+
+const selectedPrimaryTitle = computed(() => {
+  const id = selectedPrimaryId.value;
+  return primaryOpt.value?.values.find((v) => v.id === id)?.title ?? null;
 });
 
-// Read a valid phone id from the URL, or null if absent/foreign to this product.
-const phoneFromQuery = () => {
+// Noun used in "Select a …" copy, derived from the option.
+const primaryNoun = computed(() => {
+  const o = primaryOpt.value;
+  if (!o) return 'option';
+  if (isGroupedPrimary.value) return 'phone';
+  if (o.type === 'size') return 'size';
+  return o.name.toLowerCase();
+});
+
+// Read a valid primary value-id from the URL, or null if absent/foreign.
+const primaryFromQuery = () => {
   const raw = Number(route.query.phone);
-  return Number.isFinite(raw) && allPhoneIds.value.has(raw) ? raw : null;
+  return Number.isFinite(raw) && allPrimaryIds.value.has(raw) ? raw : null;
 };
 
 // Seed selection once the product arrives (and re-seed if the route id changes).
+// Values are reconstructed from the chosen variant by id membership, never by
+// array position (variant.options order may differ from product.options order).
 watch(product, (newProduct) => {
   if (!newProduct?.options || !newProduct?.variants) return;
 
-  const queryPhone = phoneFromQuery();
-  const base = {};
+  const queryPrimary = primaryFromQuery();
+  const primaryName = primaryOpt.value?.name;
 
-  if (queryPhone != null) {
-    // Phone picked via URL: default the rest from an enabled variant for it.
-    const variant =
-      defaultEnabledVariantForPhone(newProduct, queryPhone) ??
-      newProduct.variants.find((v) => v.is_enabled) ??
-      newProduct.variants[0];
-    newProduct.options.forEach((opt, i) => {
-      base[opt.name] = opt === phoneOpt.value ? queryPhone : variant?.options[i];
-    });
-  } else {
-    // No phone picked: leave the phone empty, default the other axes from the
-    // product default so a full combo completes the moment a phone is chosen.
-    const fallback =
-      newProduct.variants.find((v) => v.is_enabled && v.is_default) ??
-      newProduct.variants.find((v) => v.is_enabled) ??
-      newProduct.variants[0];
-    newProduct.options.forEach((opt, i) => {
-      base[opt.name] = opt === phoneOpt.value ? undefined : fallback?.options[i];
-    });
+  // Pick a representative variant to default the non-primary axes from.
+  const seedVariant =
+    (queryPrimary != null ? defaultEnabledVariantForPhone(newProduct, queryPrimary) : null) ??
+    newProduct.variants.find((v) => v.is_enabled && v.is_default) ??
+    newProduct.variants.find((v) => v.is_enabled) ??
+    newProduct.variants[0];
+
+  const base = optionsFromVariant(newProduct, seedVariant);
+
+  // Force hidden options (gift packaging) to their default regardless of variant.
+  for (const opt of newProduct.options) {
+    if (isHiddenOption(opt)) base[opt.name] = defaultHiddenValueId(newProduct, opt);
   }
+
+  // The primary axis: pre-filled from the URL, otherwise left unpicked.
+  if (primaryName) base[primaryName] = queryPrimary != null ? queryPrimary : undefined;
 
   selectedOptions.value = base;
 }, { immediate: true });
 
-// Keep the URL in sync when the phone changes (and react to back/forward).
-watch(selectedPhoneId, (id) => {
+// Keep the URL in sync when the primary value changes (and react to back/forward).
+// Query key stays `phone` for shared-link stability; it holds the primary value id.
+watch(selectedPrimaryId, (id) => {
   const current = route.query.phone != null ? Number(route.query.phone) : null;
   if (id != null && id !== current) {
-    router.replace({ query: { ...route.query, phone: id } });
+    // Swallow redundant-navigation rejections; never surface as unhandled.
+    router.replace({ query: { ...route.query, phone: id } }).catch(() => {});
   }
 });
 
 watch(
   () => route.query.phone,
   () => {
-    const queryPhone = phoneFromQuery();
-    if (queryPhone != null && queryPhone !== selectedPhoneId.value && phoneOpt.value) {
-      selectedOptions.value = { ...selectedOptions.value, [phoneOpt.value.name]: queryPhone };
+    const queryPrimary = primaryFromQuery();
+    if (queryPrimary != null && queryPrimary !== selectedPrimaryId.value && primaryOpt.value) {
+      selectedOptions.value = { ...selectedOptions.value, [primaryOpt.value.name]: queryPrimary };
     }
   },
 );
 
 // --- Stock flags -----------------------------------------------------------
 
-const noPhonePicked = computed(() => selectedPhoneId.value == null);
+const hasPrimary = computed(() => !!primaryOpt.value);
+const noPrimaryPicked = computed(() => hasPrimary.value && selectedPrimaryId.value == null);
 
-const phoneOutOfStock = computed(
-  () => !noPhonePicked.value && !enabledPhoneIds.value.has(selectedPhoneId.value),
+const primaryOutOfStock = computed(
+  () =>
+    hasPrimary.value &&
+    selectedPrimaryId.value != null &&
+    !optionAvailability.value[primaryOpt.value.name]?.has(selectedPrimaryId.value),
 );
 
-const selectedVariant = computed(() => resolveVariant(product.value, selectedOptions.value));
+const selectedVariant = computed(() => {
+  const v = resolveVariant(product.value, selectedOptions.value);
+  return v && v.is_enabled ? v : null;
+});
 
 const comboOutOfStock = computed(
-  () =>
-    !noPhonePicked.value &&
-    !phoneOutOfStock.value &&
-    (!selectedVariant.value || !selectedVariant.value.is_enabled),
+  () => !noPrimaryPicked.value && !primaryOutOfStock.value && !selectedVariant.value,
 );
 
-// Reset image index when variant changes
-watch(selectedVariant, () => { currentImageIndex.value = 0; });
+// Image follows the best ENABLED variant matching the current (partial)
+// selection — never a disabled, image-less combo, and never all-images dump.
+const imgVariant = computed(() => imageVariant(product.value, selectedOptions.value));
+watch(imgVariant, () => { currentImageIndex.value = 0; });
 
 const variantImages = computed(() => {
   if (!product.value?.images) return [];
-  if (!selectedVariant.value) return product.value.images;
-  const filtered = product.value.images.filter(
-    image => image.variant_ids?.includes(selectedVariant.value.id)
-  );
-  return filtered.length > 0 ? filtered : product.value.images;
+  const iv = imgVariant.value;
+  if (!iv) return product.value.images;
+  const filtered = product.value.images.filter((image) => image.variant_ids?.includes(iv.id));
+  if (!filtered.length) return product.value.images;
+  // Default image first so the hero shows the primary mockup angle.
+  return [...filtered].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
 });
 
 const currentImage = computed(() => variantImages.value[currentImageIndex.value]?.src);
@@ -255,22 +309,24 @@ const displayPrice = computed(() => {
 });
 
 const buyDisabled = computed(
-  () => noPhonePicked.value || phoneOutOfStock.value || comboOutOfStock.value,
+  () => noPrimaryPicked.value || primaryOutOfStock.value || comboOutOfStock.value,
 );
 
 const buyLabel = computed(() => {
-  if (noPhonePicked.value) return 'Select a phone';
-  if (phoneOutOfStock.value || comboOutOfStock.value) return 'Out of stock';
+  if (noPrimaryPicked.value) return `Select a ${primaryNoun.value}`;
+  if (primaryOutOfStock.value || comboOutOfStock.value) return 'Out of stock';
   return 'Buy Now';
 });
 
 const handleBuy = () => {
-  // Cart item shape is rewritten in Task 4; keep the current shape for now.
   if (buyDisabled.value || !product.value || !selectedVariant.value) return;
   cart.addItem({
+    productId: product.value.id,
+    variantId: selectedVariant.value.id,
+    quantity: 1,
     name: product.value.title,
-    price: selectedVariant.value.price,
     image: currentImage.value,
+    price: selectedVariant.value.price,
   });
   router.push('/cart');
 };
