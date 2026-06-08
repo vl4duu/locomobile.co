@@ -110,32 +110,165 @@ export function groupPhoneValues(values = []) {
 export function enabledPhoneValueIds(product) {
   const opt = phoneOption(product);
   if (!opt) return new Set();
-  const sizeIdx = product.options.indexOf(opt);
   const ids = new Set();
   for (const v of enabledVariants(product)) {
-    ids.add(v.options[sizeIdx]);
+    const id = variantValueFor(opt, v);
+    if (id != null) ids.add(id);
   }
   return ids;
 }
 
-// The variant whose options match `selectedOptions` (keyed by option NAME → value
-// id) exactly. Returns it regardless of is_enabled — the caller inspects
-// `.is_enabled` to detect a dead combo. Null if no variant matches.
+// IMPORTANT: a variant's `options` array is NOT guaranteed to be in the same
+// order as `product.options` (observed: a hoodie lists options [color, size] but
+// its variants list [sizeId, colorId]). Value ids are globally unique within a
+// product, so we match by id MEMBERSHIP (`variant.options.includes(id)`) rather
+// than by position. Never index variant.options by the product.options index.
+
+// The single value id within `variant.options` that belongs to `option`.
+export function variantValueFor(option, variant) {
+  if (!option || !variant?.options) return undefined;
+  const ids = new Set(option.values.map((v) => v.id));
+  return variant.options.find((id) => ids.has(id));
+}
+
+// Reconstruct a { optionName: valueId } map from a variant (order-independent).
+export function optionsFromVariant(product, variant) {
+  const sel = {};
+  if (!product?.options || !variant) return sel;
+  for (const opt of product.options) {
+    const id = variantValueFor(opt, variant);
+    if (id != null) sel[opt.name] = id;
+  }
+  return sel;
+}
+
+// The variant matching `selectedOptions` (keyed by option NAME → value id) on
+// every axis. Returns it regardless of is_enabled — the caller inspects
+// `.is_enabled` to detect a dead combo. Null unless every option is selected
+// and present in the variant.
 export function resolveVariant(product, selectedOptions) {
   if (!product?.options || !product?.variants) return null;
   return (
     product.variants.find((variant) =>
-      product.options.every((opt, i) => variant.options[i] === selectedOptions[opt.name]),
+      product.options.every((opt) => {
+        const sel = selectedOptions[opt.name];
+        return sel != null && variant.options.includes(sel);
+      }),
     ) ?? null
   );
 }
 
-// Among enabled variants for the given phone (size) value, the is_default one,
-// else the first, else null.
-export function defaultEnabledVariantForPhone(product, phoneValueId) {
-  const opt = phoneOption(product);
-  if (!opt) return null;
-  const sizeIdx = product.options.indexOf(opt);
-  const forPhone = enabledVariants(product).filter((v) => v.options[sizeIdx] === phoneValueId);
-  return forPhone.find((v) => v.is_default) ?? forPhone[0] ?? null;
+// Among enabled variants containing the given primary (size) value, the
+// is_default one, else the first, else null.
+export function defaultEnabledVariantForPhone(product, primaryValueId) {
+  const forPrimary = enabledVariants(product).filter((v) => v.options.includes(primaryValueId));
+  return forPrimary.find((v) => v.is_default) ?? forPrimary[0] ?? null;
+}
+
+// --- Generic (product-agnostic) details helpers ----------------------------
+// The component must work for any product, not just phone cases: a hoodie has
+// sizes, not models. These helpers reason over arbitrary options.
+
+// The "primary" axis the customer must consciously choose and which starts
+// unpicked on the details page (phone model, shirt size, ...). We treat the
+// size-type option as primary. Null if the product has no size option.
+export function primaryOption(product) {
+  return phoneOption(product);
+}
+
+// Render the size option as a manufacturer-grouped picker only when its values
+// actually look like phones (≥2 distinct manufacturers). Hoodie sizes (S/M/L)
+// all fall under "Other" → plain select.
+export function isPhoneModelOption(option) {
+  if (!option || option.type !== 'size') return false;
+  const real = groupPhoneValues(option.values).filter((g) => g.manufacturer !== 'Other');
+  return real.length >= 2;
+}
+
+// Value ids for `optionName` that have ≥1 enabled variant consistent with the
+// OTHER currently-selected options. Pass {} to ignore the other axes (the global
+// in-stock set) — used for the primary axis so secondary picks never grey it out.
+export function availableValueIds(product, optionName, selectedOptions = {}) {
+  if (!product?.options) return new Set();
+  const target = product.options.find((o) => o.name === optionName);
+  if (!target) return new Set();
+  const ids = new Set();
+  for (const v of enabledVariants(product)) {
+    const otherAxesMatch = product.options.every((opt) => {
+      if (opt.name === optionName) return true;
+      const sel = selectedOptions[opt.name];
+      return sel == null || v.options.includes(sel);
+    });
+    if (!otherAxesMatch) continue;
+    const tv = variantValueFor(target, v);
+    if (tv != null) ids.add(tv);
+  }
+  return ids;
+}
+
+// Options that should be hidden from the UI and silently defaulted. Gift
+// packaging is a paid add-on we don't offer at checkout — default to "without".
+export function isHiddenOption(option) {
+  return /gift|packag/i.test(option?.name ?? '');
+}
+
+// The value id a hidden option defaults to: the "without/none" choice if present
+// (e.g. "Without gift packaging"), else the variants' default, else first value.
+export function defaultHiddenValueId(product, option) {
+  if (!option?.values?.length) return undefined;
+  const none = option.values.find((v) => /without|^no\b|none|^no /i.test(v.title ?? ''));
+  if (none) return none.id;
+  const def = defaultVariantValue(product, option);
+  return def ?? option.values[0].id;
+}
+
+function defaultVariantValue(product, option) {
+  const dv =
+    enabledVariants(product).find((v) => v.is_default) ?? enabledVariants(product)[0];
+  return dv ? variantValueFor(option, dv) : undefined;
+}
+
+// Best enabled variant to represent the current (possibly partial) selection for
+// IMAGE display. Printify only attaches mockups to SOME variants, so we must
+// prefer a matching variant that actually HAS an image:
+//   1. exact match on all defined options, preferring one with an image;
+//   2. if that combo has no image, relax to the primary axis alone (same phone)
+//      and take an imaged variant there — so changing a surface with no distinct
+//      mockup keeps showing the right phone instead of dumping all images;
+//   3. finally fall back to the product default.
+// Always returns an ENABLED variant. (Distinct from resolveVariant's exact match.)
+export function imageVariant(product, selectedOptions = {}) {
+  const enabled = enabledVariants(product);
+  if (!enabled.length || !product?.options) return null;
+
+  const withImage = new Set();
+  for (const im of product.images ?? []) {
+    for (const id of im.variant_ids ?? []) withImage.add(id);
+  }
+
+  const matchOn = (names) =>
+    enabled.filter((v) =>
+      product.options.every((opt) => {
+        if (!names.has(opt.name)) return true;
+        const sel = selectedOptions[opt.name];
+        return sel == null || v.options.includes(sel);
+      }),
+    );
+  const pickImaged = (pool) => {
+    if (!pool.length) return null;
+    const imaged = pool.filter((v) => withImage.has(v.id));
+    const from = imaged.length ? imaged : pool;
+    return from.find((v) => v.is_default) ?? from[0];
+  };
+
+  let chosen = pickImaged(matchOn(new Set(product.options.map((o) => o.name))));
+
+  // Exact combo has no mockup → reuse an imaged variant for the same primary value.
+  const primary = primaryOption(product);
+  if ((!chosen || !withImage.has(chosen.id)) && primary && selectedOptions[primary.name] != null) {
+    const relaxed = pickImaged(matchOn(new Set([primary.name])));
+    if (relaxed && withImage.has(relaxed.id)) chosen = relaxed;
+  }
+
+  return chosen ?? pickImaged(enabled);
 }
