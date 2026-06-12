@@ -4,12 +4,15 @@
 // True iff `variant`'s images can be safely run through `processImage`.
 // Glossy finishes have specular highlights that the alpha-key reads as
 // background, so we restrict to matte until the pipeline improves.
+//
+// Matches by value-id membership, not array position: a variant's `options`
+// order is not guaranteed to match `product.options` order (see variant.js).
 export function isClientProcessable(product, variant) {
-  if (!product?.options || !variant) return false;
-  return product.options.some((opt, i) => {
-    const value = opt.values?.find((v) => v.id === variant.options[i]);
-    return value && /matte/i.test(value.title);
-  });
+  if (!product?.options || !variant?.options) return false;
+  const selected = new Set(variant.options);
+  return product.options.some((opt) =>
+    opt.values?.some((v) => selected.has(v.id) && /matte/i.test(v.title)),
+  );
 }
 
 // Alpha-key thresholds, tuned against min(R,G,B) — a pixel's "whiteness floor".
@@ -18,6 +21,10 @@ export function isClientProcessable(product, variant) {
 const OPAQUE_MAX = 220;
 const OPAQUE_MIN = 120;
 const RAMP = OPAQUE_MAX - OPAQUE_MIN;
+
+function clamp(v) {
+  return v < 0 ? 0 : v > 255 ? 255 : v | 0;
+}
 
 // White-balance-keyed alpha removal. Resolves to a data URL on success, or to
 // the original `url` on CORS taint / load failure (so callers can render
@@ -61,6 +68,12 @@ function keyOutWhite(img) {
     } else if (whiteness > OPAQUE_MIN) {
       const keepRatio = (OPAQUE_MAX - whiteness) / RAMP;
       data[i + 3] = (data[i + 3] * keepRatio) | 0;
+      // Edge pixels are product blended with white background; subtract the
+      // white spill so the remaining color is the un-contaminated foreground.
+      const spill = (1 - keepRatio) * 255;
+      data[i]     = clamp((r - spill) / keepRatio);
+      data[i + 1] = clamp((g - spill) / keepRatio);
+      data[i + 2] = clamp((b - spill) / keepRatio);
     }
   }
   ctx.putImageData(pixels, 0, 0);

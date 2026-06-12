@@ -12,13 +12,33 @@
       </div>
 
       <div v-else class="cart-content">
+        <div v-if="cart.notices.length" class="notices">
+          <div v-for="(note, i) in cart.notices" :key="i" class="notice">
+            <span>{{ note }}</span>
+            <button @click="cart.dismissNotice(i)" class="notice-dismiss" aria-label="Dismiss">×</button>
+          </div>
+        </div>
+
         <div class="items-list">
-          <div v-for="item in cart.items" :key="item.cartId" class="cart-item">
+          <div
+            v-for="item in cart.items"
+            :key="item.variantId"
+            class="cart-item"
+            :class="{ unavailable: item._unavailable }"
+          >
             <div class="item-info">
               <span class="item-name">{{ item.name }}</span>
-              <span class="item-price">${{ (item.price / 100).toFixed(2) }}</span>
+              <span v-if="item._unavailable" class="item-status">NO LONGER AVAILABLE</span>
+              <span v-else class="item-price">${{ (item.price / 100).toFixed(2) }} each</span>
             </div>
-            <button @click="cart.removeItem(item.cartId)" class="remove-btn">REMOVE</button>
+
+            <div v-if="!item._unavailable" class="qty-controls">
+              <button @click="cart.decrementQuantity(item.variantId)" class="qty-btn" aria-label="Decrease">−</button>
+              <span class="qty-value">{{ item.quantity }}</span>
+              <button @click="cart.incrementQuantity(item.variantId)" class="qty-btn" aria-label="Increase">+</button>
+            </div>
+
+            <button @click="cart.removeItem(item.variantId)" class="remove-btn">REMOVE</button>
           </div>
         </div>
 
@@ -27,7 +47,10 @@
             <span>TOTAL</span>
             <span>${{ (cart.total / 100).toFixed(2) }}</span>
           </div>
-          <button @click="handleCheckout" :disabled="loading" class="checkout-btn">
+          <p v-if="cart.hasUnavailable" class="checkout-warning">
+            Remove unavailable items to check out.
+          </p>
+          <button @click="handleCheckout" :disabled="checkoutDisabled" class="checkout-btn">
             {{ loading ? 'PROCESSING...' : 'CHECKOUT' }}
           </button>
         </div>
@@ -37,23 +60,29 @@
 </template>
 
 <script setup>
-import { ref } from 'vue';
+import { ref, computed, onMounted } from 'vue';
 import { useRouter } from 'vue-router';
-import { cart } from '@/cart';
+import { cart, revalidateCart } from '@/cart';
 
 const router = useRouter();
 import { API_BASE_URL } from '@/config';
 
 const loading = ref(false);
 
+const checkoutDisabled = computed(
+  () => loading.value || cart.items.length === 0 || cart.hasUnavailable,
+);
+
+// Re-check availability/prices whenever the cart page is opened.
+onMounted(revalidateCart);
+
 const handleCheckout = async () => {
-  if (cart.items.length === 0) return;
-  
+  if (checkoutDisabled.value) return;
+
   loading.value = true;
   try {
-    // Attempting to send all items to checkout.
-    // If the API only supports single item as seen in ProductCatalog, 
-    // it might need adjustment on the backend, but we'll send the data we have.
+    // NOTE: checkout POST body still sends display fields; Task 5 switches this
+    // to { productId, variantId, quantity } once the backend re-prices server-side.
     const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
       method: 'POST',
       headers: {
@@ -63,7 +92,8 @@ const handleCheckout = async () => {
         items: cart.items.map(item => ({
           name: item.name,
           price: item.price,
-          image: item.image
+          image: item.image,
+          quantity: item.quantity
         }))
       }),
     });
@@ -154,6 +184,38 @@ h1 {
   letter-spacing: 1px;
 }
 
+.notices {
+  margin-bottom: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.notice {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  background: rgba(255, 255, 255, 0.05);
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+}
+
+.notice-dismiss {
+  background: none;
+  border: none;
+  color: rgba(255, 255, 255, 0.6);
+  cursor: pointer;
+  font-size: 1.1rem;
+  line-height: 1;
+}
+
+.notice-dismiss:hover {
+  color: white;
+}
+
 .items-list {
   margin-bottom: 40px;
 }
@@ -162,14 +224,62 @@ h1 {
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 16px;
   padding: 20px 0;
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.cart-item.unavailable {
+  color: #ff4d4d;
+  opacity: 0.8;
 }
 
 .item-info {
   display: flex;
   flex-direction: column;
   gap: 5px;
+  flex: 1;
+}
+
+.item-status {
+  font-size: 0.75rem;
+  letter-spacing: 1px;
+  color: #ff4d4d;
+}
+
+.qty-controls {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.qty-btn {
+  width: 28px;
+  height: 28px;
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1rem;
+  line-height: 1;
+}
+
+.qty-btn:hover {
+  background: white;
+  color: black;
+}
+
+.qty-value {
+  min-width: 1.5ch;
+  text-align: center;
+}
+
+.checkout-warning {
+  color: #ff4d4d;
+  font-size: 0.8rem;
+  letter-spacing: 1px;
+  margin: -20px 0 20px;
 }
 
 .item-name {

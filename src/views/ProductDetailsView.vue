@@ -38,23 +38,64 @@
 
         <div class="product-info">
           <h2 class="product-title">{{ product.title }}</h2>
-          <div class="product-price">${{ displayPrice }}</div>
+          <p v-if="!noPrimaryPicked && selectedPrimaryTitle" class="product-subtitle">{{ selectedPrimaryTitle }}</p>
+
+          <div class="product-price">
+            <span v-if="noPrimaryPicked" class="price-hint">Select a {{ primaryNoun }}</span>
+            <span v-else-if="primaryOutOfStock || comboOutOfStock" class="price-oos">Out of stock</span>
+            <span v-else>${{ displayPrice }}</span>
+          </div>
 
           <div class="product-description" v-html="product.body_html"></div>
 
-          <div v-if="product.options?.length" class="variants-selection">
-            <div v-for="option in product.options" :key="option.name" class="option-group">
+          <div v-if="visibleOptions.length" class="variants-selection">
+            <div v-for="option in visibleOptions" :key="option.name" class="option-group">
               <label>{{ optionLabel(option) }}</label>
-              <select v-model="selectedOptions[option.name]" class="variant-select">
-                <option v-for="value in option.values" :key="value.id" :value="value.id">
-                  {{ value.title }}
+
+              <!-- Primary axis rendered as a manufacturer-grouped picker (phones) -->
+              <select
+                v-if="option === primaryOpt && isGroupedPrimary"
+                v-model.number="selectedOptions[option.name]"
+                class="variant-select"
+              >
+                <option :value="undefined" disabled>Select a {{ primaryNoun }}</option>
+                <optgroup
+                  v-for="group in primaryGroups"
+                  :key="group.manufacturer"
+                  :label="group.manufacturer"
+                >
+                  <option
+                    v-for="value in group.values"
+                    :key="value.id"
+                    :value="value.id"
+                    :disabled="!isValueAvailable(option, value.id)"
+                  >
+                    {{ value.title }}{{ isValueAvailable(option, value.id) ? '' : ' — out of stock' }}
+                  </option>
+                </optgroup>
+              </select>
+
+              <!-- Any other option (plain select, dead values greyed for the current combo) -->
+              <select v-else v-model.number="selectedOptions[option.name]" class="variant-select">
+                <option v-if="option === primaryOpt" :value="undefined" disabled>
+                  Select a {{ primaryNoun }}
+                </option>
+                <option
+                  v-for="value in option.values"
+                  :key="value.id"
+                  :value="value.id"
+                  :disabled="!isValueAvailable(option, value.id)"
+                >
+                  {{ value.title }}{{ isValueAvailable(option, value.id) ? '' : ' — out of stock' }}
                 </option>
               </select>
             </div>
           </div>
 
           <div class="actions">
-            <button class="buy-now-button" @click="handleBuy">Buy Now</button>
+            <button class="buy-now-button" :disabled="buyDisabled" @click="handleBuy">
+              {{ buyLabel }}
+            </button>
           </div>
         </div>
       </div>
@@ -64,10 +105,23 @@
 
 <script setup>
 import { computed, ref, onMounted, watch, nextTick } from 'vue';
-import { useRouter } from 'vue-router';
+import { useRouter, useRoute } from 'vue-router';
 import { cart } from '@/cart';
+import {
+  primaryOption,
+  isPhoneModelOption,
+  groupPhoneValues,
+  availableValueIds,
+  resolveVariant,
+  imageVariant,
+  defaultEnabledVariantForPhone,
+  optionsFromVariant,
+  isHiddenOption,
+  defaultHiddenValueId,
+} from '@/domain/variant';
 
 const router = useRouter();
+const route = useRoute();
 import { API_BASE_URL } from '@/config';
 import { ScrollTrigger } from 'gsap/ScrollTrigger';
 
@@ -99,39 +153,152 @@ const fetchProduct = async () => {
 
 onMounted(fetchProduct);
 
-const optionLabel = (option) => option.type === 'size' ? 'Phone Model' : option.name;
+// Labels come from the product's own option names (a hoodie says "Sizes", a
+// phone case says "Phone case sizes") — never hard-coded.
+const optionLabel = (option) => option.name;
 
-watch(product, (newProduct) => {
-  if (!newProduct?.options || !newProduct?.variants) return;
-  const enabled = newProduct.variants.filter(v => v.is_enabled);
-  const defaultVariant = enabled.find(v => v.is_default) ?? enabled[0] ?? newProduct.variants[0];
-  if (!defaultVariant) return;
-  const initialOptions = {};
-  newProduct.options.forEach((opt, i) => {
-    initialOptions[opt.name] = defaultVariant.options[i];
-  });
-  selectedOptions.value = initialOptions;
-}, { immediate: true });
+// --- Primary axis (product-agnostic) ---------------------------------------
+// The size-type option is the "primary" axis: it starts unpicked and gates the
+// price/Buy button. For phone cases that's the phone model; for a hoodie, size.
 
-const selectedVariant = computed(() => {
-  if (!product.value?.options) return null;
-  return product.value.variants?.find(variant =>
-    product.value.options.every((option, i) =>
-      variant.options[i] === selectedOptions.value[option.name]
-    )
-  ) ?? null;
+const primaryOpt = computed(() => primaryOption(product.value));
+const isGroupedPrimary = computed(() => isPhoneModelOption(primaryOpt.value));
+const primaryGroups = computed(() => groupPhoneValues(primaryOpt.value?.values ?? []));
+
+// Options shown to the user. Hidden options (gift packaging) are silently
+// defaulted in the seed and never rendered.
+const visibleOptions = computed(
+  () => product.value?.options?.filter((o) => !isHiddenOption(o)) ?? [],
+);
+
+// All valid value-ids for the primary axis (enabled or not) on THIS product.
+const allPrimaryIds = computed(
+  () => new Set((primaryOpt.value?.values ?? []).map((v) => v.id)),
+);
+
+// Per-option set of currently selectable value-ids. The primary axis uses the
+// global in-stock set ({}); secondary axes narrow by the current selection so
+// they grey out combos that are dead for the chosen primary value.
+const optionAvailability = computed(() => {
+  const map = {};
+  for (const opt of product.value?.options ?? []) {
+    map[opt.name] =
+      opt === primaryOpt.value
+        ? availableValueIds(product.value, opt.name, {})
+        : availableValueIds(product.value, opt.name, selectedOptions.value);
+  }
+  return map;
+});
+const isValueAvailable = (option, valueId) =>
+  optionAvailability.value[option.name]?.has(valueId) ?? false;
+
+const selectedPrimaryId = computed(() =>
+  primaryOpt.value ? selectedOptions.value[primaryOpt.value.name] : undefined,
+);
+
+const selectedPrimaryTitle = computed(() => {
+  const id = selectedPrimaryId.value;
+  return primaryOpt.value?.values.find((v) => v.id === id)?.title ?? null;
 });
 
-// Reset image index when variant changes
-watch(selectedVariant, () => { currentImageIndex.value = 0; });
+// Noun used in "Select a …" copy, derived from the option.
+const primaryNoun = computed(() => {
+  const o = primaryOpt.value;
+  if (!o) return 'option';
+  if (isGroupedPrimary.value) return 'phone';
+  if (o.type === 'size') return 'size';
+  return o.name.toLowerCase();
+});
+
+// Read a valid primary value-id from the URL, or null if absent/foreign.
+const primaryFromQuery = () => {
+  const raw = Number(route.query.phone);
+  return Number.isFinite(raw) && allPrimaryIds.value.has(raw) ? raw : null;
+};
+
+// Seed selection once the product arrives (and re-seed if the route id changes).
+// Values are reconstructed from the chosen variant by id membership, never by
+// array position (variant.options order may differ from product.options order).
+watch(product, (newProduct) => {
+  if (!newProduct?.options || !newProduct?.variants) return;
+
+  const queryPrimary = primaryFromQuery();
+  const primaryName = primaryOpt.value?.name;
+
+  // Pick a representative variant to default the non-primary axes from.
+  const seedVariant =
+    (queryPrimary != null ? defaultEnabledVariantForPhone(newProduct, queryPrimary) : null) ??
+    newProduct.variants.find((v) => v.is_enabled && v.is_default) ??
+    newProduct.variants.find((v) => v.is_enabled) ??
+    newProduct.variants[0];
+
+  const base = optionsFromVariant(newProduct, seedVariant);
+
+  // Force hidden options (gift packaging) to their default regardless of variant.
+  for (const opt of newProduct.options) {
+    if (isHiddenOption(opt)) base[opt.name] = defaultHiddenValueId(newProduct, opt);
+  }
+
+  // The primary axis: pre-filled from the URL, otherwise left unpicked.
+  if (primaryName) base[primaryName] = queryPrimary != null ? queryPrimary : undefined;
+
+  selectedOptions.value = base;
+}, { immediate: true });
+
+// Keep the URL in sync when the primary value changes (and react to back/forward).
+// Query key stays `phone` for shared-link stability; it holds the primary value id.
+watch(selectedPrimaryId, (id) => {
+  const current = route.query.phone != null ? Number(route.query.phone) : null;
+  if (id != null && id !== current) {
+    // Swallow redundant-navigation rejections; never surface as unhandled.
+    router.replace({ query: { ...route.query, phone: id } }).catch(() => {});
+  }
+});
+
+watch(
+  () => route.query.phone,
+  () => {
+    const queryPrimary = primaryFromQuery();
+    if (queryPrimary != null && queryPrimary !== selectedPrimaryId.value && primaryOpt.value) {
+      selectedOptions.value = { ...selectedOptions.value, [primaryOpt.value.name]: queryPrimary };
+    }
+  },
+);
+
+// --- Stock flags -----------------------------------------------------------
+
+const hasPrimary = computed(() => !!primaryOpt.value);
+const noPrimaryPicked = computed(() => hasPrimary.value && selectedPrimaryId.value == null);
+
+const primaryOutOfStock = computed(
+  () =>
+    hasPrimary.value &&
+    selectedPrimaryId.value != null &&
+    !optionAvailability.value[primaryOpt.value.name]?.has(selectedPrimaryId.value),
+);
+
+const selectedVariant = computed(() => {
+  const v = resolveVariant(product.value, selectedOptions.value);
+  return v && v.is_enabled ? v : null;
+});
+
+const comboOutOfStock = computed(
+  () => !noPrimaryPicked.value && !primaryOutOfStock.value && !selectedVariant.value,
+);
+
+// Image follows the best ENABLED variant matching the current (partial)
+// selection — never a disabled, image-less combo, and never all-images dump.
+const imgVariant = computed(() => imageVariant(product.value, selectedOptions.value));
+watch(imgVariant, () => { currentImageIndex.value = 0; });
 
 const variantImages = computed(() => {
   if (!product.value?.images) return [];
-  if (!selectedVariant.value) return product.value.images;
-  const filtered = product.value.images.filter(
-    image => image.variant_ids?.includes(selectedVariant.value.id)
-  );
-  return filtered.length > 0 ? filtered : product.value.images;
+  const iv = imgVariant.value;
+  if (!iv) return product.value.images;
+  const filtered = product.value.images.filter((image) => image.variant_ids?.includes(iv.id));
+  if (!filtered.length) return product.value.images;
+  // Default image first so the hero shows the primary mockup angle.
+  return [...filtered].sort((a, b) => (b.is_default ? 1 : 0) - (a.is_default ? 1 : 0));
 });
 
 const currentImage = computed(() => variantImages.value[currentImageIndex.value]?.src);
@@ -141,12 +308,25 @@ const displayPrice = computed(() => {
   return (price / 100).toFixed(2);
 });
 
+const buyDisabled = computed(
+  () => noPrimaryPicked.value || primaryOutOfStock.value || comboOutOfStock.value,
+);
+
+const buyLabel = computed(() => {
+  if (noPrimaryPicked.value) return `Select a ${primaryNoun.value}`;
+  if (primaryOutOfStock.value || comboOutOfStock.value) return 'Out of stock';
+  return 'Buy Now';
+});
+
 const handleBuy = () => {
-  if (!product.value || !selectedVariant.value) return;
+  if (buyDisabled.value || !product.value || !selectedVariant.value) return;
   cart.addItem({
+    productId: product.value.id,
+    variantId: selectedVariant.value.id,
+    quantity: 1,
     name: product.value.title,
-    price: selectedVariant.value.price,
     image: currentImage.value,
+    price: selectedVariant.value.price,
   });
   router.push('/cart');
 };
@@ -254,6 +434,15 @@ const handleBuy = () => {
   margin-bottom: 2rem;
 }
 
+.price-hint {
+  color: #888;
+  font-weight: 600;
+}
+
+.price-oos {
+  color: #ff4444;
+}
+
 .product-description {
   font-size: 1.1rem;
   line-height: 1.6;
@@ -301,9 +490,15 @@ const handleBuy = () => {
   transition: all 0.2s ease;
 }
 
-.buy-now-button:hover {
+.buy-now-button:hover:not(:disabled) {
   background: #eee;
   transform: translateY(-2px);
+}
+
+.buy-now-button:disabled {
+  background: #444;
+  color: #999;
+  cursor: not-allowed;
 }
 
 .status-message {
