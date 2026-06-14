@@ -25,7 +25,7 @@ const handleLoadEnd = async function () {
     <div class="loading-container" :class="{ 'fade-out': loaded }">
       <LoadingAnimation ref="loadingAnimationRef"/>
     </div>
-    <ProductCatalog />
+<!--    <ProductCatalog />-->
   </div>
 </template>
 
