@@ -81,8 +81,6 @@ const handleCheckout = async () => {
 
   loading.value = true;
   try {
-    // NOTE: checkout POST body still sends display fields; Task 5 switches this
-    // to { productId, variantId, quantity } once the backend re-prices server-side.
     const response = await fetch(`${API_BASE_URL}/api/create-checkout-session`, {
       method: 'POST',
       headers: {
@@ -90,9 +88,8 @@ const handleCheckout = async () => {
       },
       body: JSON.stringify({
         items: cart.items.map(item => ({
-          name: item.name,
-          price: item.price,
-          image: item.image,
+          productId: item.productId,
+          variantId: item.variantId,
           quantity: item.quantity
         }))
       }),
@@ -101,6 +98,13 @@ const handleCheckout = async () => {
     const data = await response.json();
     if (data.url) {
       window.location.href = data.url;
+    } else if (response.status === 400 && data.unavailable) {
+      for (const variantId of data.unavailable) {
+        const item = cart.items.find((i) => i.variantId === variantId)
+        if (item) item._unavailable = true
+      }
+      cart.notices.push('Some items are no longer available.')
+      await revalidateCart()
     } else {
       console.error('Checkout failed', data);
       alert('Checkout failed. Please try again.');
