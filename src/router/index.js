@@ -4,6 +4,7 @@ import { ScrollTrigger } from 'gsap/ScrollTrigger'
 import HomeView from '@/views/HomeView.vue'
 import ProductDetailsView from '@/views/ProductDetailsView.vue'
 import PayList from '@/views/PayList.vue'
+import OrderConfirmationView from '@/views/OrderConfirmationView.vue'
 import { getLenis } from '@/lenis'
 
 const routes = [
@@ -15,6 +16,7 @@ const routes = [
     props: true,
   },
   { path: '/cart', name: 'cart', component: PayList },
+  { path: '/order-confirmation', name: 'order-confirmation', component: OrderConfirmationView },
   { path: '/:pathMatch(.*)*', component: HomeView },
 ]
 
