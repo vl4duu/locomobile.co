@@ -5,6 +5,18 @@
     <link rel="icon" href="/vinyl-icon.png">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
     <title>Locomobile</title>
+    <script>
+      // Start downloading the home-page 3D model in parallel with the JS bundle.
+      // Home only, so deep links to other pages don't pay for it.
+      if (location.pathname === '/') {
+        const l = document.createElement('link');
+        l.rel = 'preload';
+        l.as = 'fetch';
+        l.href = '/spinning-disc.glb';
+        l.crossOrigin = 'anonymous';
+        document.head.appendChild(l);
+      }
+    </script>
   </head>
   <body>
     <div id="app"></div>
