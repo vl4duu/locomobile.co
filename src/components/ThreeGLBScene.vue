@@ -7,12 +7,11 @@
 <script>
 import * as THREE from 'three';
 import {GLTFLoader} from 'three/examples/jsm/loaders/GLTFLoader';
-import NavBar from "@/components/NavBar.vue";
-import LoadingAnimation from "@/components/LoadingAnimation.vue";
+import {debugFlags} from "@/utils/debugFlags";
 
 export default {
   name: 'ThreeGLBScene',
-  components: {LoadingAnimation, NavBar},
+  emits: ['loaded'],
   data() {
     return {
       loading: true,
@@ -30,6 +29,7 @@ export default {
       this.model = null;
       this.clock = new THREE.Clock();
       this.animationId = null;
+      this.ready = false; // set once warmUp() has uploaded textures and compiled shaders
 
       // Safari detection
       const ua = navigator.userAgent.toLowerCase();
@@ -43,13 +43,19 @@ export default {
       return;
     }
     this.initThree();
+    if (debugFlags.perf || debugFlags.capture) {
+      const dbg = await import("@/utils/sceneDebug.js");
+      if (debugFlags.perf) this.perf = dbg.createPerfMonitor(this.renderer, () => this.scene);
+      if (debugFlags.capture) this.captureApi = dbg.installCaptureApi(this);
+    }
     this.addEventListeners()
     this.loadScene();
-    this.animate();
+    if (!debugFlags.capture) this.animate();
   },
   beforeUnmount() {
     this.removeEventListeners()
     this.disposeThree();
+    if (this.perf) this.perf.dispose();
   },
   methods: {
     isWebGLAvailable() {
@@ -86,7 +92,7 @@ export default {
       try {
         this.renderer = new THREE.WebGLRenderer({
           canvas,
-          antialias: !this.isIOS, // Disable antialias on iOS for performance
+          antialias: debugFlags.noAA ? false : !this.isIOS, // Disable antialias on iOS for performance
           alpha: true,
           powerPreference: "high-performance",
           precision: this.isIOS ? "lowp" : "mediump",
@@ -99,7 +105,7 @@ export default {
       }
       
       // iOS performance and compatibility settings
-      this.renderer.shadowMap.enabled = true;
+      this.renderer.shadowMap.enabled = !debugFlags.noShadow;
       this.renderer.shadowMap.type = this.isSafari ? THREE.BasicShadowMap : THREE.PCFSoftShadowMap;
       this.renderer.toneMapping = THREE.NoToneMapping;
       this.renderer.setClearColor(0x000000, 0); // Transparent background
@@ -125,17 +131,17 @@ export default {
       this.animate();
     },
     loadScene: function () {
-      const loadingManager = new THREE.LoadingManager(() => {
+      this.ready = false;
+      const loadingManager = new THREE.LoadingManager(async () => {
+        await this.warmUp();
         this.loading = false;
-        this.$nextTick(() => {
-          this.updateCameraAspect();
-        });
         this.$emit('loaded');
+        if (this.captureApi) this.captureApi.markReady();
       });
 
       const loader = new GLTFLoader(loadingManager)
       loader.load(
-          '/spinning-disc.gltf',
+          debugFlags.model || '/spinning-disc.glb',
           (gltf) => {
             this.model = gltf.scene;
             this.scene.add(this.model);
@@ -147,17 +153,52 @@ export default {
           }
       );
     },
+    // Upload textures, compile shaders and draw the first frame while the loading screen is
+    // still up, so the big one-off GPU stall never lands during the fade-in.
+    async warmUp() {
+      if (!this.renderer || !this.scene || !this.camera) return;
+      this.updateCameraAspect();
+      try {
+        await this.renderer.compileAsync(this.scene, this.camera);
+      } catch (e) {
+        console.warn('Shader pre-compilation failed, compiling on first frame instead', e);
+      }
+      if (!this.renderer) return; // unmounted while compiling
+      this.scene.traverse((obj) => {
+        if (!obj.isMesh) return;
+        for (const mat of Array.isArray(obj.material) ? obj.material : [obj.material]) {
+          for (const value of Object.values(mat)) {
+            if (value && value.isTexture) this.renderer.initTexture(value);
+          }
+        }
+      });
+      this.renderer.render(this.scene, this.camera);
+      this.ready = true;
+    },
     setupScene: function (gltf) {
       this.setupAnimationMixer(gltf);
       this.setupCamera();
       this.setupLight();
       this.setupDisc()
       this.setupBackDrop();
+      if (debugFlags.noMaps) this.stripMaps();
+    },
+    stripMaps() {
+      this.model.traverse((child) => {
+        if (!child.isMesh) return;
+        for (const mat of Array.isArray(child.material) ? child.material : [child.material]) {
+          for (const [key, value] of Object.entries(mat)) {
+            if (value && value.isTexture) mat[key] = null;
+          }
+          mat.needsUpdate = true;
+        }
+      });
     },
     setupAnimationMixer: function (gltf) {
       if (gltf.animations.length > 0) {
         this.mixer = new THREE.AnimationMixer(this.model);
         this.mixer.clipAction(gltf.animations[0]).play();
+        this.clipDuration = gltf.animations[0].duration;
       }
     },
     setupCamera: function () {
@@ -184,7 +225,8 @@ export default {
         } else if (window.innerWidth < 768) {
           shadowRes = 1024;
         }
-        
+        if (debugFlags.shadowRes) shadowRes = debugFlags.shadowRes;
+
         sceneLight.shadow.mapSize.width = shadowRes;
         sceneLight.shadow.mapSize.height = shadowRes;
         sceneLight.shadow.camera.near = 0.5;
@@ -225,42 +267,29 @@ export default {
       const backDrop = this.model.getObjectByName('back_drop');
       if (backDrop) {
         backDrop.receiveShadow = true;
-        backDrop.castShadow = true;
+        // Not a caster on purpose: it never shadows anything visible, but as a caster
+        // it was drawn into several point-light cube faces every frame.
+        backDrop.castShadow = false;
       }
     },
     animate() {
       this.animationId = requestAnimationFrame(this.animate);
 
       const delta = this.clock.getDelta();
-      
-      // Basic frame skipping for Safari if performance is an issue
-      // In a real scenario, we'd measure FPS, but here we provide a hook
-      if (this.isSafari && this.frameCount === undefined) this.frameCount = 0;
-      if (this.isSafari) {
-        this.frameCount++;
-        if (this.frameCount % 2 === 0 && this.lowFPSMode) return; // Skip every other frame if in low FPS mode
-      }
 
-      if (this.camera && this.scene && this.renderer) {
+      if (this.ready && this.camera && this.scene && this.renderer) {
+        if (this.perf) this.perf.begin();
         this.renderer.render(this.scene, this.camera);
+        if (this.perf) this.perf.end();
+        if (debugFlags.static) {
+          cancelAnimationFrame(this.animationId);
+          return;
+        }
       }
 
       // Skip mixer updates when delta is below threshold
       if (this.mixer && delta > 0.001) {
         this.mixer.update(delta);
-      }
-      
-      // Simple FPS monitoring
-      if (!this.lastFrameTime) this.lastFrameTime = performance.now();
-      const now = performance.now();
-      const frameTime = now - this.lastFrameTime;
-      this.lastFrameTime = now;
-      
-      if (frameTime > 33.3) { // Lower than 30fps
-        this.lowFPSCount = (this.lowFPSCount || 0) + 1;
-        if (this.lowFPSCount > 60) { // Persistent low FPS
-          this.lowFPSMode = true;
-        }
       }
     },
     onWindowResize() {
@@ -282,7 +311,7 @@ export default {
 
       // Cap pixel ratio at 1.5x for Safari/iOS, 2x for others
       const maxPixelRatio = (this.isSafari || this.isIOS) ? 1.5 : 2;
-      this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, maxPixelRatio));
+      this.renderer.setPixelRatio(debugFlags.dpr ?? Math.min(window.devicePixelRatio, maxPixelRatio));
     },
     addEventListeners: function () {
       window.addEventListener('resize', this.onWindowResize, {passive: true});
@@ -306,13 +335,11 @@ export default {
       if (this.animationId) {
         cancelAnimationFrame(this.animationId);
       }
-      
-      if (this.renderer) {
-        this.renderer.dispose();
-      }
 
       if (this.scene) {
         this.scene.traverse((object) => {
+          // Point-light shadow atlas is the single largest GPU allocation in the scene.
+          if (object.isLight && object.shadow) object.shadow.dispose();
           if (!object.isMesh) return;
 
           object.geometry.dispose();
@@ -325,7 +352,14 @@ export default {
           }
         });
       }
-      
+
+      if (this.renderer) {
+        this.renderer.dispose();
+        // Release the context (and its GPU memory) now instead of whenever GC gets to it;
+        // every visit to the home page creates a fresh one.
+        this.renderer.forceContextLoss();
+      }
+
       this.scene = null;
       this.camera = null;
       this.renderer = null;

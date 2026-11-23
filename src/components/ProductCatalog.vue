@@ -48,6 +48,7 @@
 <script setup>
 import {computed, nextTick, onBeforeUnmount, onMounted, ref} from 'vue';
 import {useRouter} from 'vue-router';
+import {debugFlags} from '@/utils/debugFlags';
 import {ScrollTrigger} from 'gsap/ScrollTrigger';
 import {API_BASE_URL} from '@/config';
 import {cardSummary} from '@/domain/variant';
@@ -98,6 +99,7 @@ const noiseCanvas = ref(null);
 let noiseRafId = null;
 let noiseStop = false;
 let noiseResizeObserver = null;
+let noiseVisibilityObserver = null;
 
 function startNoise() {
   const canvas = noiseCanvas.value;
@@ -134,9 +136,26 @@ function startNoise() {
   noiseResizeObserver = new ResizeObserver(resize);
   noiseResizeObserver.observe(canvas);
 
+  // Only animate while the catalog is actually on screen (it starts below the fold).
+  let visible = false;
+  noiseVisibilityObserver = new IntersectionObserver(([entry]) => {
+    const wasVisible = visible;
+    visible = entry.isIntersecting;
+    // noiseRafId !== null means a tick is still pending and will pick the loop back up itself.
+    if (visible && !wasVisible && !noiseStop && noiseRafId === null) noiseRafId = requestAnimationFrame(tick);
+  }, {
+    // Edge-touching counts as intersecting, and at page top the catalog starts exactly at the
+    // viewport's bottom edge; shrink the root by 1px so the loop really is paused there.
+    rootMargin: '0px 0px -1px 0px',
+  });
+  noiseVisibilityObserver.observe(canvas);
+
   let lastDraw = 0;
   const tick = (now) => {
-    if (noiseStop) return;
+    if (noiseStop || !visible) {
+      noiseRafId = null;
+      return;
+    }
     if (buf && now - lastDraw >= FRAME_INTERVAL_MS) {
       lastDraw = now;
       for (let i = 0; i < buf.length; i += 4) {
@@ -150,18 +169,18 @@ function startNoise() {
     }
     noiseRafId = requestAnimationFrame(tick);
   };
-  noiseRafId = requestAnimationFrame(tick);
 }
 
 onMounted(() => {
   fetchProducts();
-  startNoise();
+  if (!debugFlags.noNoise) startNoise();
 });
 
 onBeforeUnmount(() => {
   noiseStop = true;
   if (noiseRafId) cancelAnimationFrame(noiseRafId);
   if (noiseResizeObserver) noiseResizeObserver.disconnect();
+  if (noiseVisibilityObserver) noiseVisibilityObserver.disconnect();
 });
 </script>
 

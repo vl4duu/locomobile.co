@@ -1,8 +1,10 @@
 <script setup>
-import ThreeGLBScene from "@/components/ThreeGLBScene.vue";
 import ProductCatalog from "@/components/ProductCatalog.vue";
-import {ref} from 'vue'
+import {defineAsyncComponent, ref} from 'vue'
 import LoadingAnimation from "@/components/LoadingAnimation.vue";
+
+// three.js (~600 KB) lives in its own chunk so it doesn't hold up the rest of the page.
+const ThreeGLBScene = defineAsyncComponent(() => import("@/components/ThreeGLBScene.vue"));
 
 const loaded = ref(false);
 const showScene = ref(false);
