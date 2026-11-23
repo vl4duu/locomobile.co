@@ -143,6 +143,10 @@ function startNoise() {
     visible = entry.isIntersecting;
     // noiseRafId !== null means a tick is still pending and will pick the loop back up itself.
     if (visible && !wasVisible && !noiseStop && noiseRafId === null) noiseRafId = requestAnimationFrame(tick);
+  }, {
+    // Edge-touching counts as intersecting, and at page top the catalog starts exactly at the
+    // viewport's bottom edge; shrink the root by 1px so the loop really is paused there.
+    rootMargin: '0px 0px -1px 0px',
   });
   noiseVisibilityObserver.observe(canvas);
 
